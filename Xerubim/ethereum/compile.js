@@ -30,12 +30,20 @@ const compilerInput = {
         }
     }
 };
+try{
+  const stringifiedInput  = JSON.stringify(compilerInput);
+  const compiledInput = solc.compile(stringifiedInput);
+  const parsedInput = JSON.parse(compiledInput);
+  const output = parsedInput.contracts['Contract.sol'];
 
-const output = JSON.parse(solc.compile(JSON.stringify(compilerInput))).contracts['Contract.sol'];
+  fs.ensureDirSync(buildPath);
 
-fs.ensureDirSync(buildPath);
-
-for (let contractIndex in Object.values(output)) {
+  for (let contractIndex in Object.values(output)) {
     fs.outputJsonSync(path.resolve(buildPath, Object.keys(output)[contractIndex] + '.json'), output[Object.keys(output)[contractIndex]]);
+  }
 }
+catch (e) {
+  console.log(e)
+}
+
 

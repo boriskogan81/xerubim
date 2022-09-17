@@ -1,44 +1,46 @@
 <template>
   <q-page class="flex flex-center">
-    <q-dialog v-model="contractDialog">
-      <q-card v-if="store.selectedContract">
+    <q-dialog v-model="contractDialog" @hide="contractStore.selectContract(0)">
+      <q-card v-if="contractStore.selectedContract">
         <q-card-section class="row items-center q-pb-none">
-          <div class="text-h6">{{ store.selectedContract.name && store.selectedContract.name }}</div>
-          <q-space />
-          <q-btn icon="close" flat round dense v-close-popup />
+          <div class="text-h6">{{ contractStore.selectedContract.task && contractStore.selectedContract.task }}</div>
+          <q-space/>
+          <q-btn icon="close" flat round dense v-close-popup/>
         </q-card-section>
         <q-card-section>
-          <div class="text-uppercase">Name: {{ store.selectedContract.name && store.selectedContract.name }}</div>
-          <div class="text-uppercase">Pay: {{ store.selectedContract.pay && store.selectedContract.pay }} eth</div>
+          <div>TASK: {{ contractStore.selectedContract.data[3] }}</div>
+          <div class="text-uppercase">Pay: {{ fromWei(contractStore.selectedContract.data[2])}} eth
+          </div>
           <div class="text-uppercase">Expires:
-            {{ store.selectedContract.expirationDate && store.selectedContract.expirationDate }}
+            {{
+              new Date(parseInt(contractStore.selectedContract.data[5]) * 1000)
+                .toLocaleDateString(undefined,
+                  {weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'})
+            }}
           </div>
-          <div>TASK: {{ store.selectedContract.task && store.selectedContract.task }}</div>
-          <div>SPECIAL INSTRUCTIONS:
-            {{ store.selectedContract.specialInstructions && store.selectedContract.specialInstructions }}
-          </div>
-          <div>FORMAT: {{ store.selectedContract.format && store.selectedContract.format }}</div>
+          <div>FORMAT: {{ contractStore.selectedContract.data[4] }}</div>
           <div>MINIMAL LENGTH:
-            {{ store.selectedContract.minimalLength && `${store.selectedContract.minimalLength} minute` }}
-            {{ store.selectedContract.minimalLength && store.selectedContract.minimalLength > 1 ? "s" : "" }}
+            {{ `${contractStore.selectedContract.data[7]} minute${parseInt(contractStore.selectedContract.data[7]) > 1 ? "s" : ""}` }}
           </div>
           <div>MINIMAL RESOLUTION:
-            {{ store.selectedContract.minimalResolution && store.selectedContract.minimalResolution }}
+            {{ contractStore.selectedContract.data[9] }}
           </div>
-          <div v-if="store.selectedContract && store.selectedContract.active" class="active">ACTIVE</div>
+          <div :class="contractStore.selectedContract.data[6] === 'open' && 'active'">
+            STATUS: {{ contractStore.selectedContract.data[6] }}
+          </div>
         </q-card-section>
         <q-card-actions>
           <q-btn color="secondary" flat @click="fulfillmentFields = !fulfillmentFields">Fill Contract</q-btn>
         </q-card-actions>
         <q-card-section v-if="fulfillmentFields" class="q-pa-lg">
-          <q-input outlined v-model="fulfillmentNotes" label="Please add notes on the contract" style="width: auto" />
+          <q-input outlined v-model="fulfillmentNotes" label="Please add notes on the contract" style="width: auto"/>
           <q-uploader
             url="http://localhost:3000/upload"
             label="Upload video/photo files"
             multiple
             batch
             style="margin: 2em; width: auto;"
-            :form-fields="[{name: 'notes', value: fulfillmentNotes}, {name: 'contractId', value: store.selectedContract && store.selectedContract.id}]"
+            :form-fields="[{name: 'notes', value: fulfillmentNotes}, {name: 'contractId', value: contractStore.selectedContract && contractStore.selectedContract.id}]"
             @uploaded="onFileUpload"
             ref="uploader"
           />
@@ -49,18 +51,18 @@
       <q-card style="min-width: 30vw">
         <q-card-section class="row items-center q-pb-none">
           <div class="text-h6">New Contract</div>
-          <q-space />
-          <q-btn icon="close" flat round dense v-close-popup />
+          <q-space/>
+          <q-btn icon="close" flat round dense v-close-popup/>
         </q-card-section>
         <q-card-section>
           <q-form @submit="onSubmit">
-            <q-input v-model="newContract.name"
-                     label="Contract name *"
+            <q-input v-model="newContract.task"
+                     label="Describe the task *"
                      lazy-rules
                      :rules="[ val => val && val.length > 0 || 'Please type something']"
             />
             <q-input v-model="newContract.pay"
-                     label="Pay in eth*"
+                     label="Funding in wei *"
                      type="number"
                      lazy-rules
                      :rules="[ val => val && val.length > 0 || 'Please type something']"
@@ -76,21 +78,13 @@
                   >
                     <q-date v-model="newContract.expirationDate">
                       <div class="row items-center justify-end">
-                        <q-btn v-close-popup label="Close" color="primary" flat />
+                        <q-btn v-close-popup label="Close" color="primary" flat/>
                       </div>
                     </q-date>
                   </q-popup-proxy>
                 </q-icon>
               </template>
             </q-input>
-            <q-input v-model="newContract.task"
-                     label="Task *"
-                     lazy-rules
-                     :rules="[ val => val && val.length > 0 || 'Please type something']"
-            />
-            <q-input v-model="newContract.specialInstructions"
-                     label="Special instructions"
-            />
             <q-select v-model="newContract.format"
                       label="Format *"
                       :options="formatOptions"
@@ -120,10 +114,10 @@
             @moveend="moveEnd"
             ref="map">
 
-      <ol-view ref="view" :center="center" :rotation="rotation" :zoom="zoom" :projection="projection" />
+      <ol-view ref="view" :center="center" :rotation="rotation" :zoom="zoom" :projection="projection"/>
 
       <ol-tile-layer>
-        <ol-source-osm />
+        <ol-source-osm/>
       </ol-tile-layer>
       <ol-interaction-select @select="featureSelected" :condition="selectCondition" ref="selectInteraction">
         <ol-style>
@@ -146,9 +140,9 @@
                   <ol-style-icon :src="hereIcon" :scale="0.1"></ol-style-icon>
                 </ol-style>
               </ol-feature>
-              <ol-feature v-for="(contract, index) in store.contracts" :key="index" :properties="contract"
+              <ol-feature v-for="(contract, index) in contractStore.contracts" :key="index" :properties="contract"
                           ref="contracts">
-                <ol-geom-polygon :coordinates="[contract.location]"></ol-geom-polygon>
+                <ol-geom-polygon :coordinates="processCoords(contract.coordinates[0])"></ol-geom-polygon>
                 <ol-style>
                   <ol-style-stroke color="green" :width="5"></ol-style-stroke>
                 </ol-style>
@@ -160,7 +154,7 @@
       </ol-geolocation>
     </ol-map>
     <q-page-sticky position="bottom-right" :offset="[36, 36]">
-      <q-btn fab icon="add" color="blue" direction="up" @click="fabClick" />
+      <q-btn fab icon="add" color="blue" direction="up" @click="fabClick"/>
     </q-page-sticky>
   </q-page>
 </template>
@@ -173,15 +167,19 @@ import {
   defineComponent,
   onMounted
 } from "vue";
-import { useQuasar } from "quasar";
-import { useContractStore } from "stores/contract-store";
-import json from "../../package.json";
+import {useQuasar} from "quasar";
+import {useContractStore} from "stores/contract-store";
+import compiledFactory from "../../ethereum/build/MediaContractFactory.json";
+import {api} from 'boot/axios';
+
+const web3 = ref();
+const factory = ref();
 
 export default defineComponent({
   name: "IndexPage",
   setup() {
     const $q = useQuasar();
-    const store = useContractStore();
+    const contractStore = useContractStore();
     const center = ref([40, 40]);
     const projection = ref("EPSG:4326");
     const zoom = ref(10);
@@ -192,13 +190,11 @@ export default defineComponent({
     const map = ref(null);
     const fulfillmentFields = ref(false);
     const newContract = ref({
-      id: store.contracts.length + 1,
-      name: "",
+      id: contractStore.contracts.length + 1,
       task: "",
       format: "",
       minimalLength: "",
       minimalResolution: "",
-      specialInstructions: "",
       pay: "",
       expirationDate: "",
       location: [],
@@ -221,7 +217,7 @@ export default defineComponent({
 
     const clickedFeature = (event) => {
       if (event.selected.length === 1 && event.selected[0].values_.id) {
-        store.selectContract(event.selected[0].values_.id);
+        contractStore.selectContract(event.selected[0].values_.id);
         contractDialog.value = true;
       }
     };
@@ -238,7 +234,30 @@ export default defineComponent({
       "480p", "720p", "1080p", "1440p", "4k", "8k"
     ];
 
-    const onSubmit = () => {
+    const connect = async () => {
+      if (window && window.ethereum) {
+        const conn = await window.ethereum.request({method: 'eth_requestAccounts'});
+        return !!conn;
+      } else {
+        $q.notify({
+          color: "red-5",
+          textColor: "white",
+          icon: "warning",
+          message: "You need to set the contract location first"
+        });
+        return false;
+      }
+    };
+
+    const processCoords = (coordArray) => {
+      let processedCoords = coordArray.map(coord =>
+        [coord.y, coord.x]
+      )
+      return [processedCoords];
+    }
+
+    const onSubmit = async () => {
+      const conn = await connect();
       if (!(newContract.value.location.length > 0)) {
         $q.notify({
           color: "red-5",
@@ -247,27 +266,76 @@ export default defineComponent({
           message: "You need to set the contract location first"
         });
       } else {
-        addContractDialog.value = false;
-        store.addContract({ ...newContract.value });
-        newContract.value = {
-          id: store.contracts.length + 1,
-          name: "",
-          task: "",
-          format: "",
-          minimalLength: "",
-          minimalResolution: "",
-          specialInstructions: "",
-          pay: "",
-          expirationDate: "",
-          location: [],
-          active: true
-        };
-        $q.notify({
-          color: "green-4",
-          textColor: "white",
-          icon: "cloud_done",
-          message: "Contract submitted"
-        });
+        try {
+          addContractDialog.value = false;
+          const accounts = await window.ethereum.request({method: 'eth_requestAccounts'});
+          const account = accounts[0];
+          const dismiss = $q.notify({
+            spinner: true,
+            message: 'Please wait...',
+            timeout: 0
+          });
+          const getGasFeeForContractCall = async () => {
+            const gasAmount = await factory.value.methods.createContract(
+              Math.floor(new Date(newContract.value.expirationDate).getTime() / 1000),
+              newContract.value.task,
+              newContract.value.format,
+              newContract.value.minimalLength,
+              newContract.value.minimalResolution,
+              JSON.stringify(newContract.value.location)
+            ).estimateGas({from: account})
+            const gasPrice = '100000';
+            const pay = gasAmount * gasPrice;
+            console.log(pay)
+            return web3.value.utils.toBN(web3.value.utils.fromWei(pay.toString(), "ether"));
+          };
+          await factory.value.methods
+            .createContract(
+              Math.floor(new Date(newContract.value.expirationDate).getTime() / 1000),
+              newContract.value.task,
+              newContract.value.format,
+              newContract.value.minimalLength,
+              newContract.value.minimalResolution,
+              JSON.stringify(newContract.value.location)
+            )
+            .send({
+              from: account,
+              gas: await getGasFeeForContractCall(),
+              value: newContract.value.pay
+            })
+            .on('error', function (error, receipt) {
+              console.log(error, receipt)
+              dismiss();
+              $q.notify({
+                color: "red-4",
+                textColor: "white",
+                icon: "error_outline",
+                message: "Contract creation failed"
+              });
+            });
+
+          await api.get('/ingest')
+          newContract.value = {
+            id: contractStore.contracts.length + 1,
+            task: "",
+            format: "",
+            minimalLength: "",
+            minimalResolution: "",
+            pay: "",
+            expirationDate: "",
+            location: [],
+            active: true
+          };
+          dismiss();
+          $q.notify({
+            color: "green-4",
+            textColor: "white",
+            icon: "cloud_done",
+            message: "Contract submitted"
+          });
+        } catch (e) {
+          console.log(e)
+        }
       }
     };
 
@@ -328,14 +396,19 @@ export default defineComponent({
 
     const fulfillmentNotes = ref('');
 
-    const moveEnd = (event) => {
-      console.log(event.map.frameState_.extent);
-      console.log(event.map.getView().getCenter())
+    const moveEnd = async (event) => {
+      const corners = event.map.frameState_.extent;
+      //console.log(corners);
+      // console.log(event.map.getView().getCenter());
+      await contractStore.updateQuery({...contractStore.contractQuery, corners})
     }
 
+    const fromWei = (wei) => web3.value.utils.fromWei(wei, "ether")
+
     onMounted(() => {
-      store.$subscribe((mutation, state) => {
-        if (state.selectedContract && state.selectedContract.id) {
+      contractStore.$subscribe((mutation, state) => {
+        if (state.selectedContract && state.selectedContract.id && ref(contracts)._value) {
+          console.log(ref(contracts))
           const feature = ref(contracts)._value.find(value =>
             value.feature.values_.id === state.selectedContract.id
           ).feature;
@@ -344,6 +417,11 @@ export default defineComponent({
           contractDialog.value = true;
         }
       });
+      web3.value = new Web3(window.web3.currentProvider);
+      factory.value = new web3.value.eth.Contract(
+        compiledFactory.abi,
+        '0xeF69217Db1560631Ad9274CaE93ae8C85A4Bc6c1'
+      );
     });
 
     return {
@@ -372,14 +450,16 @@ export default defineComponent({
       drawEnd,
       drawStart,
       startDrawing,
-      store,
+      contractStore,
       selectInteraction,
       sourceVector,
       contracts,
       fulfillmentFields,
       fulfillmentNotes,
       onFileUpload,
-      moveEnd
+      moveEnd,
+      processCoords,
+      fromWei
     };
   }
 

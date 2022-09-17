@@ -2,7 +2,7 @@ const HDWalletProvider = require("@truffle/hdwallet-provider");
 const Web3 = require("web3");
 const config = require("../config/web3.json");
 const mnemonicPhrase = config.mnemonic;
-const compiledFactory = require('../ethereum/build/MediaContractFactory.json');
+const compiledFactory = require('./build/MediaContractFactory.json');
 let provider = new HDWalletProvider({
   mnemonic: {
     phrase: mnemonicPhrase

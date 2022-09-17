@@ -15,8 +15,8 @@ contract MediaContractFactory {
     uint _minimalLength,
     string calldata _minimalResolution,
     string calldata _location
-  ) public payable{
-    address newContract =  address(new MediaContract{value: msg.value} (
+  ) public payable {
+    address newContract = address(new MediaContract{value : msg.value}(
         _expiration,
         _tasking,
         _formatting,
@@ -35,18 +35,13 @@ contract MediaContractFactory {
 }
 
 contract MediaContract {
-  address payable public customer ;
+  address payable public customer;
   address payable public platform;
   address payable public reporter;
-  uint public contractPrice;
-  uint public platformFee;
   string public task;
   string public format;
-  uint public created;
   uint public expires;
   string public status;
-  string public pay;
-  string public tasking;
   uint public minimalLength;
   string public specialInstructions;
   string public minimalResolution;
@@ -64,9 +59,6 @@ contract MediaContract {
     address payable newCustomer
   ) payable{
     customer = newCustomer;
-    contractPrice =  msg.value * 95 / 100;
-    platformFee = msg.value * 5 / 100;
-    created = block.timestamp;
     expires = expiration;
     task = tasking_;
     format = formatting_;
@@ -77,10 +69,10 @@ contract MediaContract {
     status = 'open';
   }
 
-  function proposeMedia (string[] memory addresses) public {
+  function proposeMedia(string[] memory addresses) public {
     require(block.timestamp < expires);
     require(hashCompareWithLengthCheck(status, 'open'));
-    reporter =  payable(msg.sender);
+    reporter = payable(msg.sender);
     mediaAddresses = addresses;
     status = 'proposed';
   }
@@ -89,10 +81,8 @@ contract MediaContract {
     require(payable(msg.sender) == customer);
     require(hashCompareWithLengthCheck(status, 'proposed'));
     status = 'closed';
-    contractPrice =  address(this).balance * 95 / 100;
-    platformFee = address(this).balance * 5 / 100;
-    reporter.transfer(contractPrice);
-    platform.transfer(platformFee);
+    reporter.transfer(address(this).balance * 95 / 100);
+    platform.transfer(address(this).balance * 5 / 100);
   }
 
   function disputeProposal() public {
@@ -108,14 +98,12 @@ contract MediaContract {
     delete mediaAddresses;
   }
 
-  function rejectDispute() public payable{
+  function rejectDispute() public payable {
     require(msg.sender == platform);
     require(hashCompareWithLengthCheck(status, 'disputed'));
     status = 'closed';
-    contractPrice =  address(this).balance * 95 / 100;
-    platformFee = address(this).balance * 5 / 100;
-    reporter.transfer(contractPrice);
-    platform.transfer(platformFee);
+    reporter.transfer(address(this).balance * 95 / 100);
+    platform.transfer(address(this).balance * 5 / 100);
   }
 
   function closeContract() public {
@@ -136,8 +124,39 @@ contract MediaContract {
   function getMediaAddresses() public view returns (string[] memory) {
     return mediaAddresses;
   }
-  function hashCompareWithLengthCheck( string memory a, string memory b) internal pure returns (bool)  {
-    if(bytes(a).length != bytes(b).length) {
+
+  function getSummary() public view returns (
+    address,
+    address,
+    uint,
+    string memory,
+    string memory,
+    uint,
+    string memory,
+    uint,
+    string memory,
+    string memory,
+    string memory,
+    string[] memory
+  ){
+    return (
+    customer,
+    reporter,
+    address(this).balance * 95 / 100,
+    task,
+    format,
+    expires,
+    status,
+    minimalLength,
+    specialInstructions,
+    minimalResolution,
+    location,
+    mediaAddresses
+    );
+  }
+
+  function hashCompareWithLengthCheck(string memory a, string memory b) internal pure returns (bool)  {
+    if (bytes(a).length != bytes(b).length) {
       return false;
     } else {
       return keccak256(abi.encode(a)) == keccak256(abi.encode(b));

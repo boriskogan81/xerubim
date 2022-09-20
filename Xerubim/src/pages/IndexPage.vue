@@ -28,19 +28,26 @@
           <div :class="contractStore.selectedContract.data[6] === 'open' && 'active'">
             STATUS: {{ contractStore.selectedContract.data[6] }}
           </div>
+          <div v-if="contractStore.selectedContract.data[11]">
+            MEDIA:
+            <div v-for="cif of contractStore.selectedContract.data[11]" :key="cif">{{cif}}</div>
+          </div>
         </q-card-section>
         <q-card-actions>
-          <q-btn color="secondary" flat @click="fulfillmentFields = !fulfillmentFields">Fill Contract</q-btn>
+          <q-btn v-if="contractStore.selectedContract.data[6] === 'open'" flat @click="fulfillmentFields = !fulfillmentFields">Fill Contract</q-btn>
+          <q-btn v-if="contractStore.selectedContract.data[6] === 'proposed'" flat @click="console.log('accepted')">Accept</q-btn>
+          <q-btn v-if="contractStore.selectedContract.data[6] === 'proposed'" flat @click="console.log('disputed')">Dispute</q-btn>
+
         </q-card-actions>
         <q-card-section v-if="fulfillmentFields" class="q-pa-lg">
           <q-input outlined v-model="fulfillmentNotes" label="Please add notes on the contract" style="width: auto"/>
           <q-uploader
-            url="http://localhost:3000/upload"
+            :url="`http://localhost:3000/upload/contractAddress/${contractStore.selectedContract.address}`"
             label="Upload video/photo files"
             multiple
             batch
             style="margin: 2em; width: auto;"
-            :form-fields="[{name: 'notes', value: fulfillmentNotes}, {name: 'contractId', value: contractStore.selectedContract && contractStore.selectedContract.id}]"
+            :form-fields="[{name: 'notes', value: fulfillmentNotes}]"
             @uploaded="onFileUpload"
             ref="uploader"
           />
@@ -62,7 +69,7 @@
                      :rules="[ val => val && val.length > 0 || 'Please type something']"
             />
             <q-input v-model="newContract.pay"
-                     label="Funding in wei *"
+                     label="Funding in ether *"
                      type="number"
                      lazy-rules
                      :rules="[ val => val && val.length > 0 || 'Please type something']"
@@ -140,9 +147,9 @@
                   <ol-style-icon :src="hereIcon" :scale="0.1"></ol-style-icon>
                 </ol-style>
               </ol-feature>
-              <ol-feature v-for="(contract, index) in contractStore.contracts" :key="index" :properties="contract"
+              <ol-feature v-for="(contract, index) in contractStore.contracts" :key="featureKey(index)" :properties="contract"
                           ref="contracts">
-                <ol-geom-polygon :coordinates="processCoords(contract.coordinates[0])"></ol-geom-polygon>
+                <ol-geom-polygon :coordinates="contract.coordinates" :key="contract.address"></ol-geom-polygon>
                 <ol-style>
                   <ol-style-stroke color="green" :width="5"></ol-style-stroke>
                 </ol-style>
@@ -170,6 +177,7 @@ import {
 import {useQuasar} from "quasar";
 import {useContractStore} from "stores/contract-store";
 import compiledFactory from "../../ethereum/build/MediaContractFactory.json";
+import compiledContract from "../../ethereum/build/MediaContract.json";
 import {api} from 'boot/axios';
 
 const web3 = ref();
@@ -198,7 +206,8 @@ export default defineComponent({
       pay: "",
       expirationDate: "",
       location: [],
-      active: true
+      active: true,
+      signature: ""
     });
     const geoLocChange = (loc) => {
       view.value.fit([loc[0], loc[1], loc[0], loc[1]], {
@@ -249,15 +258,10 @@ export default defineComponent({
       }
     };
 
-    const processCoords = (coordArray) => {
-      let processedCoords = coordArray.map(coord =>
-        [coord.y, coord.x]
-      )
-      return [processedCoords];
-    }
 
     const onSubmit = async () => {
       const conn = await connect();
+
       if (!(newContract.value.location.length > 0)) {
         $q.notify({
           color: "red-5",
@@ -266,15 +270,23 @@ export default defineComponent({
           message: "You need to set the contract location first"
         });
       } else {
+        const dismiss = $q.notify({
+          spinner: true,
+          message: 'Please wait...',
+          timeout: 60000
+        });
         try {
           addContractDialog.value = false;
           const accounts = await window.ethereum.request({method: 'eth_requestAccounts'});
           const account = accounts[0];
-          const dismiss = $q.notify({
-            spinner: true,
-            message: 'Please wait...',
-            timeout: 0
-          });
+          const signatureHash = await web3.value.eth.personal.sign('Signature verification for video file encryption', account);
+          await api.post('/signatures', {
+            signature: signatureHash,
+            address: account
+          }).catch(function (e){
+            throw e;
+          })
+
           const getGasFeeForContractCall = async () => {
             const gasAmount = await factory.value.methods.createContract(
               Math.floor(new Date(newContract.value.expirationDate).getTime() / 1000),
@@ -283,11 +295,8 @@ export default defineComponent({
               newContract.value.minimalLength,
               newContract.value.minimalResolution,
               JSON.stringify(newContract.value.location)
-            ).estimateGas({from: account})
-            const gasPrice = '100000';
-            const pay = gasAmount * gasPrice;
-            console.log(pay)
-            return web3.value.utils.toBN(web3.value.utils.fromWei(pay.toString(), "ether"));
+            ).estimateGas({from: account, value: web3.value.utils.toWei(newContract.value.pay.toString(), 'ether')})
+            return gasAmount.toString();
           };
           await factory.value.methods
             .createContract(
@@ -301,7 +310,7 @@ export default defineComponent({
             .send({
               from: account,
               gas: await getGasFeeForContractCall(),
-              value: newContract.value.pay
+              value: web3.value.utils.toWei(newContract.value.pay.toString(), 'ether')
             })
             .on('error', function (error, receipt) {
               console.log(error, receipt)
@@ -314,7 +323,8 @@ export default defineComponent({
               });
             });
 
-          await api.get('/ingest')
+          await api.post('/ingest');
+          await contractStore.updateQuery({...contractStore.contractQuery});
           newContract.value = {
             id: contractStore.contracts.length + 1,
             task: "",
@@ -334,21 +344,52 @@ export default defineComponent({
             message: "Contract submitted"
           });
         } catch (e) {
+          dismiss();
           console.log(e)
         }
       }
     };
 
-    const onFileUpload = () => {
-      $q.notify({
+    const onFileUpload = async (info) => {
+      console.log(info)
+      const dismiss = $q.notify({
         color: "green-5",
         textColor: "white",
         icon: "done",
         message: "Files have been uploaded and are processing"
       });
+      const cids = JSON.parse(info.xhr.response).cids;
+      const contract = new web3.value.eth.Contract(
+        compiledContract.abi,
+        contractStore.selectedContract.address
+      );
+
+      const accounts = await window.ethereum.request({method: 'eth_requestAccounts'});
+      const account = accounts[0];
+
+      const getGasFeeForProposalCall = async () => {
+        const gasAmount = await contract.methods.proposeMedia(cids)
+          .estimateGas({from: account})
+        return gasAmount.toString();
+      };
+      await contract.methods
+        .proposeMedia(cids)
+        .send({
+          from: account,
+          gas: await getGasFeeForProposalCall()
+        })
+        .on('error', function (error, receipt) {
+          console.log(error, receipt)
+          dismiss();
+          $q.notify({
+            color: "red-4",
+            textColor: "white",
+            icon: "error_outline",
+            message: "Contract creation failed"
+          });
+        });
+      await contractStore.updateQuery({...contractStore.contractQuery});
       setTimeout(() => {
-        fulfillmentNotes.value = '';
-        fulfillmentFields.value = false;
         contractDialog.value = false;
       }, 2000);
     };
@@ -410,7 +451,7 @@ export default defineComponent({
         if (state.selectedContract && state.selectedContract.id && ref(contracts)._value) {
           console.log(ref(contracts))
           const feature = ref(contracts)._value.find(value =>
-            value.feature.values_.id === state.selectedContract.id
+            value.feature.values_.address === state.selectedContract.address
           ).feature;
           selectInteraction.value.select.getFeatures().clear();
           selectInteraction.value.select.getFeatures().push(feature);
@@ -423,6 +464,10 @@ export default defineComponent({
         '0xeF69217Db1560631Ad9274CaE93ae8C85A4Bc6c1'
       );
     });
+
+    const featureKey = (index) => {
+      return index * new Date().getTime();
+    }
 
     return {
       ref,
@@ -458,8 +503,8 @@ export default defineComponent({
       fulfillmentNotes,
       onFileUpload,
       moveEnd,
-      processCoords,
-      fromWei
+      fromWei,
+      featureKey
     };
   }
 

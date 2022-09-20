@@ -49,5 +49,5 @@ process.on('unhandledRejection', ex => {
     if (Array.isArray(ex) && ex.length === 1)
         ex = ex[0];
 
-    logger.error(`Backend process unhandled Rejection: ${ex.stack}`);
+    console.log(`Backend process unhandled Rejection: ${ex.stack}`);
 });

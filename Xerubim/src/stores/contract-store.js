@@ -53,11 +53,14 @@ export const useContractStore = defineStore('contracts', {
 
       try {
         const contracts = await api.get('/contracts', {
-          params: {
-            query
-          }
+          params: query
         })
-        this.setContracts(contracts.data.contracts);
+        const rectifiedContracts = contracts.data.contracts.map(contract => {
+          contract.coordinates = processCoords(contract.coordinates[0]);
+          return contract
+        })
+
+        this.setContracts(rectifiedContracts);
         this.setCurrentPage(contracts.data.pagination.page);
         this.setTotalPages(contracts.data.pagination.pageCount);
         this.setPageSize(contracts.data.pagination.pageSize);
@@ -67,3 +70,10 @@ export const useContractStore = defineStore('contracts', {
     }
   },
 });
+
+const processCoords = (coordArray) => {
+  let processedCoords = coordArray.map(coord =>
+    [coord.y, coord.x]
+  )
+  return [processedCoords];
+}

@@ -11,14 +11,15 @@ global.__base = __dirname + '/';
 
 require('./global_functions');
 
-var express = require('express');
-var path = require('path');
-var cookieParser = require('cookie-parser');
-var logger = require('morgan');
+const express = require('express');
+const path = require('path');
+const cookieParser = require('cookie-parser');
+const logger = require('morgan');
 
-var indexRouter = require('./routes/index');
+const indexRouter = require('./routes/index');
 
-var app = express();
+const app = express();
+const cors = require('cors');
 
 app.use(logger('dev'));
 app.use(express.json());
@@ -30,6 +31,7 @@ app.use((req, res, next) => {
     res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
     next();
 })
+app.use(cors({ origin: 'http://localhost:9000'}))
 app.use('/', indexRouter);
 app.listen(8080)
 

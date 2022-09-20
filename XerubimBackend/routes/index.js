@@ -11,20 +11,21 @@ const encrypted = path.join(__dirname, '../encrypted/');
 const decrypted = path.join(__dirname, '../decrypted/');
 const encryptFile = require('../helpers/helpers').encryptFile;
 const helpers = require('../helpers/helpers')
+const {knex} = require("../bootstrap/bookshelf_instance");
+const {model: Contract} = require("../models/contract");
+
 
 
 router.post('/encrypt', async (req, res) => {
     try {
-        const {buyerKey, sellerKey, marketKey} = req.body;
+        const {buyerKey, sellerKey} = req.body;
         const cryptoKey = await subtle.generateKey({name: 'AES-GCM', length: 256}, true, ['encrypt', 'decrypt']);
         const key = await subtle.exportKey('raw', cryptoKey);
         const buyerEncryptedKey = await EthCrypto.encryptWithPublicKey(buyerKey, String(key));
         const sellerEncryptedKey = await EthCrypto.encryptWithPublicKey(sellerKey, String(key));
-        const marketEncryptedKey = await EthCrypto.encryptWithPublicKey(marketKey, String(key));
         const encryptedKeys = {
             buyerEncryptedKey,
-            sellerEncryptedKey,
-            marketEncryptedKey
+            sellerEncryptedKey
         }
 
         const iv = crypto.randomBytes(16);
@@ -57,8 +58,60 @@ router.post('/decrypt', async (req, res) => {
     }
 });
 
-router.post('/upload', async (req, res) => {
-    let encryptedFiles = [];
+router.post('/signatures', async (req, res) => {
+    try {
+        const {signature, address} = req.body;
+        await helpers.storeSignature(signature, address);
+        return ReS(res, 'successfully stored', 200);
+    } catch (e) {
+        console.log(e)
+        ReE(res, e, 500);
+    }
+});
+
+router.post('/plaintextEncrypt', async (req, res) => {
+    try {
+        const {plaintext, address} = req.body;
+        const encrypted  = await helpers.encryptWithSignature(plaintext, address);
+        return ReS(res, {encrypted}, 200);
+    } catch (e) {
+        console.log(e)
+        ReE(res, e, 500);
+    }
+});
+
+router.post('/ciphertextDecrypt', async (req, res) => {
+    try {
+        const {ciphertext, privateKey} = req.body;
+        const decrypted  = await helpers.decryptWithPrivateKey(ciphertext, privateKey);
+        return ReS(res, {decrypted}, 200);
+    } catch (e) {
+        console.log(e)
+        ReE(res, e, 500);
+    }
+});
+
+router.post('/upload/contractAddress/:contractAddress', async (req, res) => {
+    const {contractAddress} = req.params;
+    const contract = await new Contract()
+        .where({'address': contractAddress})
+        .fetch({require: true});
+
+    const customerAddress = contract.attributes.data['0'];
+    const signatureQuery = await knex.raw(`SELECT signature FROM signature where address = \'${customerAddress}\' LIMIT 1`);
+
+    const signature = signatureQuery[0][0].signature;
+    const customerPublicKey = EthCrypto.recoverPublicKey(
+        signature,
+        EthCrypto.hash.keccak256('\x19Ethereum Signed Message:\n' + 'Signature verification for video file encryption'.length + 'Signature verification for video file encryption')
+    );
+
+    const cryptoKey = await subtle.generateKey({name: 'AES-GCM', length: 256}, true, ['encrypt', 'decrypt']);
+    const key = await subtle.exportKey('raw', cryptoKey);
+    const buyerEncryptedKey = await EthCrypto.encryptWithPublicKey(customerPublicKey, String(key));
+    const encrypted = EthCrypto.cipher.stringify(buyerEncryptedKey);
+
+    let cids = [];
     const form = new formidable.IncomingForm({
         multiples: true,
         keepExtensions: true,
@@ -71,17 +124,16 @@ router.post('/upload', async (req, res) => {
             }
             const fileKeys = Object.keys(files);
             await Promise.all(fileKeys.map(async (fileKey) => {
-                const encryptedFile = await encryptFile(
-                    req.buyerKey || 'a22ad7e75b5287fbae7f35fcd952bb61405cb60ee3b7e984858c1f0cccf61609d8092ee469234f75e70b6a2e4041ad88cde93a75df14a5566ad561e12444d7c2',
-                    req.sellerKey || 'a22ad7e75b5287fbae7f35fcd952bb61405cb60ee3b7e984858c1f0cccf61609d8092ee469234f75e70b6a2e4041ad88cde93a75df14a5566ad561e12444d7c2',
-                    'a22ad7e75b5287fbae7f35fcd952bb61405cb60ee3b7e984858c1f0cccf61609d8092ee469234f75e70b6a2e4041ad88cde93a75df14a5566ad561e12444d7c2',
+                const cid = await encryptFile(
+                    key,
                     files[fileKey].newFilename,
                     files[fileKey].filepath,
-                    encrypted
+                    encrypted,
+                    contractAddress
                 )
-                encryptedFiles.push(encryptedFile)
+                cids.push(cid)
             }))
-            res.json({encryptedFiles});
+            res.json({cids});
         });
     } catch (e) {
         return res.status(400).json({

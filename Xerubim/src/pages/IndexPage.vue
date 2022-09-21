@@ -28,15 +28,15 @@
           <div :class="contractStore.selectedContract.data[6] === 'open' && 'active'">
             STATUS: {{ contractStore.selectedContract.data[6] }}
           </div>
-          <div v-if="contractStore.selectedContract.data[11]">
+          <div v-if="contractStore.selectedContract.data[11] && isCustomer(contractStore.selectedContract)">
             MEDIA:
-            <div v-for="cif of contractStore.selectedContract.data[11]" :key="cif">{{cif}}</div>
+            <MediaDisplay />
           </div>
         </q-card-section>
         <q-card-actions>
           <q-btn v-if="contractStore.selectedContract.data[6] === 'open'" flat @click="fulfillmentFields = !fulfillmentFields">Fill Contract</q-btn>
-          <q-btn v-if="contractStore.selectedContract.data[6] === 'proposed'" flat @click="console.log('accepted')">Accept</q-btn>
-          <q-btn v-if="contractStore.selectedContract.data[6] === 'proposed'" flat @click="console.log('disputed')">Dispute</q-btn>
+          <q-btn v-if="contractStore.selectedContract.data[6] === 'proposed' && isCustomer(contractStore.selectedContract)" flat @click="console.log('accepted')">Accept</q-btn>
+          <q-btn v-if="contractStore.selectedContract.data[6] === 'proposed' && isCustomer(contractStore.selectedContract)" flat @click="console.log('disputed')">Dispute</q-btn>
 
         </q-card-actions>
         <q-card-section v-if="fulfillmentFields" class="q-pa-lg">
@@ -168,6 +168,7 @@
 
 <script>
 import hereIcon from "../assets/here.png";
+import MediaDisplay from "components/MediaDisplay.vue";
 import {
   ref,
   inject,
@@ -182,9 +183,11 @@ import {api} from 'boot/axios';
 
 const web3 = ref();
 const factory = ref();
+const account = ref();
 
 export default defineComponent({
   name: "IndexPage",
+  components: {MediaDisplay},
   setup() {
     const $q = useQuasar();
     const contractStore = useContractStore();
@@ -277,12 +280,10 @@ export default defineComponent({
         });
         try {
           addContractDialog.value = false;
-          const accounts = await window.ethereum.request({method: 'eth_requestAccounts'});
-          const account = accounts[0];
-          const signatureHash = await web3.value.eth.personal.sign('Signature verification for video file encryption', account);
+          const signatureHash = await web3.value.eth.personal.sign('Signature verification for video file encryption', account.value);
           await api.post('/signatures', {
             signature: signatureHash,
-            address: account
+            address: account.value
           }).catch(function (e){
             throw e;
           })
@@ -295,7 +296,7 @@ export default defineComponent({
               newContract.value.minimalLength,
               newContract.value.minimalResolution,
               JSON.stringify(newContract.value.location)
-            ).estimateGas({from: account, value: web3.value.utils.toWei(newContract.value.pay.toString(), 'ether')})
+            ).estimateGas({from: account.value, value: web3.value.utils.toWei(newContract.value.pay.toString(), 'ether')})
             return gasAmount.toString();
           };
           await factory.value.methods
@@ -308,7 +309,7 @@ export default defineComponent({
               JSON.stringify(newContract.value.location)
             )
             .send({
-              from: account,
+              from: account.value,
               gas: await getGasFeeForContractCall(),
               value: web3.value.utils.toWei(newContract.value.pay.toString(), 'ether')
             })
@@ -364,18 +365,15 @@ export default defineComponent({
         contractStore.selectedContract.address
       );
 
-      const accounts = await window.ethereum.request({method: 'eth_requestAccounts'});
-      const account = accounts[0];
-
       const getGasFeeForProposalCall = async () => {
         const gasAmount = await contract.methods.proposeMedia(cids)
-          .estimateGas({from: account})
+          .estimateGas({from: account.value})
         return gasAmount.toString();
       };
       await contract.methods
         .proposeMedia(cids)
         .send({
-          from: account,
+          from: account.value,
           gas: await getGasFeeForProposalCall()
         })
         .on('error', function (error, receipt) {
@@ -446,7 +444,7 @@ export default defineComponent({
 
     const fromWei = (wei) => web3.value.utils.fromWei(wei, "ether")
 
-    onMounted(() => {
+    onMounted(async() => {
       contractStore.$subscribe((mutation, state) => {
         if (state.selectedContract && state.selectedContract.id && ref(contracts)._value) {
           console.log(ref(contracts))
@@ -463,11 +461,17 @@ export default defineComponent({
         compiledFactory.abi,
         '0xeF69217Db1560631Ad9274CaE93ae8C85A4Bc6c1'
       );
+
+      const accounts = await window.ethereum.request({method: 'eth_requestAccounts'});
+      account.value = accounts[0];
     });
 
     const featureKey = (index) => {
       return index * new Date().getTime();
     }
+
+    const isCustomer = (contract) => contract.data[0].toLowerCase() === account.value.toLowerCase();
+    const isReporter = (contract) => contract.data[1].toLowerCase() === account.value.toLowerCase();
 
     return {
       ref,
@@ -504,7 +508,10 @@ export default defineComponent({
       onFileUpload,
       moveEnd,
       fromWei,
-      featureKey
+      featureKey,
+      account,
+      isCustomer,
+      isReporter
     };
   }
 

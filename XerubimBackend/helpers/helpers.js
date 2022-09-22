@@ -38,16 +38,11 @@ const encryptFile = async (key, fileName, inputFilePath, encrypted, contractAddr
     try {
         const iv = crypto.randomBytes(16);
         const cipher = crypto.createCipheriv('aes-256-ctr', key, iv, null);
-        const input = fs.createReadStream(inputFilePath);
-        //const output = fs.createWriteStream(path.join(destination, fileName));
+        //const input = fs.createReadStream(inputFilePath);
         const storage = makeStorageClient();
-      //  input.pipe(cipher).pipe(output);
-
-        // output.on('finish', function () {
-        //     console.log('Encrypted file written to disk!');
-        // });
         const keyString = new Int32Array(key).toString();
-        const cid = await storage.put([{ name: fileName, stream: () => input.pipe(cipher) }]);
+        const files = await Web3Storage.getFilesFromPath(inputFilePath);
+        const cid = await storage.put(files);
         await knex.raw(`INSERT INTO crypto (buyerEncryptedKey, iv, cid, contractAddress, keystring) VALUES (\'${encrypted}\', \'${iv.toString('hex')}\',\'${cid}\', \'${contractAddress}\', \'${keyString}\')`)
         return cid
 

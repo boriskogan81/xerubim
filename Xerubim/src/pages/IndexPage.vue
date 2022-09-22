@@ -28,18 +28,18 @@
           <div :class="contractStore.selectedContract.data[6] === 'open' && 'active'">
             STATUS: {{ contractStore.selectedContract.data[6] }}
           </div>
-          <div v-if="contractStore.selectedContract.data[11] && isCustomer(contractStore.selectedContract)">
+          <div v-if="contractStore.selectedContract.data[6] === 'proposed' && isCustomer(contractStore.selectedContract)">
             MEDIA:
             <MediaDisplay />
           </div>
         </q-card-section>
         <q-card-actions>
           <q-btn v-if="contractStore.selectedContract.data[6] === 'open'" flat @click="fulfillmentFields = !fulfillmentFields">Fill Contract</q-btn>
-          <q-btn v-if="contractStore.selectedContract.data[6] === 'proposed' && isCustomer(contractStore.selectedContract)" flat @click="console.log('accepted')">Accept</q-btn>
-          <q-btn v-if="contractStore.selectedContract.data[6] === 'proposed' && isCustomer(contractStore.selectedContract)" flat @click="console.log('disputed')">Dispute</q-btn>
+          <q-btn v-if="contractStore.selectedContract.data[6] === 'proposed' && isCustomer(contractStore.selectedContract)" flat @click="acceptProposal">Accept Proposal</q-btn>
+          <q-btn v-if="contractStore.selectedContract.data[6] === 'proposed' && isCustomer(contractStore.selectedContract)" flat @click="disputeProposal">Dispute Proposal</q-btn>
 
         </q-card-actions>
-        <q-card-section v-if="fulfillmentFields" class="q-pa-lg">
+        <q-card-section v-if="contractStore.selectedContract.data[6] === 'open'" class="q-pa-lg">
           <q-input outlined v-model="fulfillmentNotes" label="Please add notes on the contract" style="width: auto"/>
           <q-uploader
             :url="`http://localhost:3000/upload/contractAddress/${contractStore.selectedContract.address}`"
@@ -352,44 +352,49 @@ export default defineComponent({
     };
 
     const onFileUpload = async (info) => {
-      console.log(info)
-      const dismiss = $q.notify({
-        color: "green-5",
-        textColor: "white",
-        icon: "done",
-        message: "Files have been uploaded and are processing"
-      });
-      const cids = JSON.parse(info.xhr.response).cids;
-      const contract = new web3.value.eth.Contract(
-        compiledContract.abi,
-        contractStore.selectedContract.address
-      );
-
-      const getGasFeeForProposalCall = async () => {
-        const gasAmount = await contract.methods.proposeMedia(cids)
-          .estimateGas({from: account.value})
-        return gasAmount.toString();
-      };
-      await contract.methods
-        .proposeMedia(cids)
-        .send({
-          from: account.value,
-          gas: await getGasFeeForProposalCall()
-        })
-        .on('error', function (error, receipt) {
-          console.log(error, receipt)
-          dismiss();
-          $q.notify({
-            color: "red-4",
-            textColor: "white",
-            icon: "error_outline",
-            message: "Contract creation failed"
-          });
+      try{
+        console.log(info)
+        const dismiss = $q.notify({
+          color: "green-5",
+          textColor: "white",
+          icon: "done",
+          message: "Files have been uploaded and are processing"
         });
-      await contractStore.updateQuery({...contractStore.contractQuery});
-      setTimeout(() => {
+        const cids = JSON.parse(info.xhr.response).cids;
+        console.log(cids)
+        const contract = new web3.value.eth.Contract(
+          compiledContract.abi,
+          contractStore.selectedContract.address
+        );
+
+        const getGasFeeForProposalCall = async () => {
+          const gasAmount = await contract.methods.proposeMedia(cids)
+            .estimateGas({from: account.value})
+          return gasAmount.toString();
+        };
+        await contract.methods
+          .proposeMedia(cids)
+          .send({
+            from: account.value,
+            gas: await getGasFeeForProposalCall()
+          })
+          .on('error', function (error, receipt) {
+            console.log(error, receipt)
+            dismiss();
+            $q.notify({
+              color: "red-4",
+              textColor: "white",
+              icon: "error_outline",
+              message: "Contract creation failed"
+            });
+          });
+        await contractStore.updateQuery({...contractStore.contractQuery});
         contractDialog.value = false;
-      }, 2000);
+      }
+      catch (e) {
+        console.log(e)
+      }
+
     };
 
     const fabClick = () => {
@@ -473,6 +478,102 @@ export default defineComponent({
     const isCustomer = (contract) => contract.data[0].toLowerCase() === account.value.toLowerCase();
     const isReporter = (contract) => contract.data[1].toLowerCase() === account.value.toLowerCase();
 
+    const acceptProposal = async() => {
+      const dismiss = $q.notify({
+        spinner: true,
+        message: 'Please wait, accepting the proposal',
+        timeout: 100000
+      });
+      const contract = new web3.value.eth.Contract(
+        compiledContract.abi,
+        contractStore.selectedContract.address
+      );
+
+      const getGasFeeForProposalCall = async () => {
+        const gasAmount = await contract.methods.acceptProposal()
+          .estimateGas({from: account.value})
+        return gasAmount.toString();
+      };
+      try{
+        await contract.methods
+          .acceptProposal()
+          .send({
+            from: account.value,
+            gas: await getGasFeeForProposalCall()
+          })
+          .on('error', function (error, receipt) {
+            console.log(error, receipt)
+            dismiss();
+            $q.notify({
+              color: "red-4",
+              textColor: "white",
+              icon: "error_outline",
+              message: "Contract acceptance failed"
+            });
+          });
+        dismiss();
+        await contractStore.updateQuery({...contractStore.contractQuery});
+        contractDialog.value = false;
+      }
+      catch(e){
+        dismiss();
+        $q.notify({
+          color: "red-4",
+          textColor: "white",
+          icon: "error_outline",
+          message: "Contract acceptance failed"
+        });
+      }
+    }
+
+    const disputeProposal = async() => {
+      const dismiss = $q.notify({
+        spinner: true,
+        message: 'Please wait, disputing the proposal',
+        timeout: 100000
+      });
+      const contract = new web3.value.eth.Contract(
+        compiledContract.abi,
+        contractStore.selectedContract.address
+      );
+
+      const getGasFeeForProposalCall = async () => {
+        const gasAmount = await contract.methods.disputeProposal()
+          .estimateGas({from: account.value})
+        return gasAmount.toString();
+      };
+      try{
+        await contract.methods
+          .disputeProposal()
+          .send({
+            from: account.value,
+            gas: await getGasFeeForProposalCall()
+          })
+          .on('error', function (error, receipt) {
+            console.log(error, receipt)
+            dismiss();
+            $q.notify({
+              color: "red-4",
+              textColor: "white",
+              icon: "error_outline",
+              message: "Contract dispute failed"
+            });
+          });
+        dismiss();
+        await contractStore.updateQuery({...contractStore.contractQuery});
+        contractDialog.value = false;
+      }
+      catch(e){
+        dismiss();
+        $q.notify({
+          color: "red-4",
+          textColor: "white",
+          icon: "error_outline",
+          message: "Contract dispute failed"
+        });
+      }
+    }
+
     return {
       ref,
       center,
@@ -511,7 +612,9 @@ export default defineComponent({
       featureKey,
       account,
       isCustomer,
-      isReporter
+      isReporter,
+      acceptProposal,
+      disputeProposal
     };
   }
 

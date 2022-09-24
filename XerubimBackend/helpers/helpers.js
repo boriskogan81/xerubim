@@ -80,8 +80,7 @@ const ingestContracts = async () => {
     );
     const contractAddresses = await factory.methods.getDeployedContracts().call();
 
-    //TODO refactor to use map and Promise.all
-    for await (const contractAddress of contractAddresses) {
+    await Promise.all(contractAddresses.map(async (contractAddress) => {
         try {
             const cachedContract = await new Contract()
                 .where({'address': contractAddress})
@@ -92,8 +91,7 @@ const ingestContracts = async () => {
         } catch (e) {
             console.log(e);
         }
-
-    }
+    }))
 }
 
 const syncContractByAddress = async (address) => {
@@ -131,11 +129,11 @@ const ingestContractByAddress = async (address) => {
                 prepped = prepped + subArray[0] + ' ' + subArray[1] + ', '
             })
 
-            prepped = "ST_GeomFromText('POLYGON((" + prepped.slice(0, -2) + "))', 4326)"
+            prepped = 'ST_GeomFromText("POLYGON((' + prepped.slice(0, -2) + '))", 4326)'
             return prepped;
         }
 
-        await knex.raw(`INSERT INTO contract(data, address, coordinates,  smart_contract_version_id) VALUES (\'${JSON.stringify(data)}\', \'${address}\',  \'${geoString(data[10])}\', 1)`);
+        await knex.raw(`INSERT INTO contract(data, address, coordinates,  smart_contract_version_id) VALUES (\'${JSON.stringify(data)}\', \'${address}\',  ${geoString(data[10])}, 1)`);
     } catch (e) {
         console.log(e);
     }

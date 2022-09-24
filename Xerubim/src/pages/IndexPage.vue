@@ -263,21 +263,20 @@ export default defineComponent({
 
 
     const onSubmit = async () => {
-      const conn = await connect();
-
+      await connect();
+      const dismiss = $q.notify({
+        spinner: true,
+        message: 'Submitting contract, please wait...',
+        timeout: 0
+      });
       if (!(newContract.value.location.length > 0)) {
         $q.notify({
           color: "red-5",
           textColor: "white",
           icon: "warning",
-          message: "You need to set the contract location first"
+          message: "You need to set the contract location first",
         });
       } else {
-        const dismiss = $q.notify({
-          spinner: true,
-          message: 'Please wait...',
-          timeout: 60000
-        });
         try {
           addContractDialog.value = false;
           const signatureHash = await web3.value.eth.personal.sign('Signature verification for video file encryption', account.value);
@@ -285,6 +284,13 @@ export default defineComponent({
             signature: signatureHash,
             address: account.value
           }).catch(function (e){
+            dismiss();
+            $q.notify({
+              color: "red-4",
+              textColor: "white",
+              icon: "error_outline",
+              message: "Contract creation failed"
+            });
             throw e;
           })
 
@@ -472,7 +478,7 @@ export default defineComponent({
     });
 
     const featureKey = (index) => {
-      return index * new Date().getTime();
+      return index + new Date().getTime();
     }
 
     const isCustomer = (contract) => contract.data[0].toLowerCase() === account.value.toLowerCase();

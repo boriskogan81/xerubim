@@ -1,0 +1,36 @@
+{
+  "name": "ofanym-backend",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "start": "pm2 start ./bin/www --watch -f"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.332.0",
+    "@aws-sdk/lib-storage": "^3.332.0",
+    "aes-encrypt-stream": "^0.2.0",
+    "arraybuffer-to-string": "^1.0.2",
+    "bookshelf": "^1.2.0",
+    "bookshelf-json-columns": "^3.0.0",
+    "bookshelf-registry": "^1.0.0",
+    "bookshelf-upsert": "^0.2.0",
+    "cookie-parser": "~1.4.4",
+    "cors": "^2.8.5",
+    "cryptico": "^1.0.2",
+    "crypto-js": "^4.1.1",
+    "debug": "~2.6.9",
+    "eth-crypto": "^2.3.0",
+    "eth-ecies": "^1.0.6",
+    "express": "~4.16.1",
+    "formidable": "^2.1.1",
+    "morgan": "~1.9.1",
+    "multer": "^1.4.5-lts.1",
+    "mysql": "^2.18.1",
+    "openpgp": "^5.9.0",
+    "parse-error": "^0.2.0",
+    "redis-om": "^0.3.6",
+    "streaming-s3": "^0.4.5",
+    "string-to-arraybuffer": "^1.0.2",
+    "web3.storage": "^4.4.0"
+  }
+}

@@ -364,7 +364,7 @@ const parseFile = async (req) => {
         let stringKey = await subtle.exportKey('raw',key);
         stringKey = Buffer.from(stringKey).toString('base64');
         //encrypt string key with public key
-        const message = await openpgp.createMessage({text: 'stringKey'});
+        const message = await openpgp.createMessage({text: stringKey});
         const encrypted = await openpgp.encrypt({
             message, // input as Message object
             encryptionKeys: customerPublicKey

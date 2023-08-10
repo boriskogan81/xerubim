@@ -41,6 +41,8 @@ try{
   for (let contractIndex in Object.values(output)) {
     fs.outputJsonSync(path.resolve(buildPath, Object.keys(output)[contractIndex] + '.json'), output[Object.keys(output)[contractIndex]]);
   }
+
+  console.log('Successfully compiled')
 }
 catch (e) {
   console.log(e)

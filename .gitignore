@@ -3,3 +3,6 @@
 ./Ofanym/node_modules
 /OfanymBackend/node_modules/
 /OfanymBackend/unencrypted/
+/OfanymFrontend/tests/
+/OfanymFrontend/config
+/OfanymBackend/config

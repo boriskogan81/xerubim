@@ -4,8 +4,8 @@
       <div class="text-subtitle1">From {{ reporter }}</div>
       <div class="text-subtitle2">File {{ index + 1 }}</div>
       <q-input filled v-model="passphrase" label="Your passphrase" />
-      <div>Enter your contract passphrase for file decryption. The key stays local and is not uploaded</div>
-      <q-btn @click="retrieveBuyerEncryptedKey()">Download</q-btn>
+      <div>Enter your contract passphrase for file decryption.</div>
+      <q-btn @click="saveFile(file)">Download</q-btn>
     </q-card-section>
   </div>
 </template>
@@ -76,36 +76,35 @@ export default defineComponent({
             contractAddress: contractStore.selectedContract.address,
           }
         })
-        console.log('encryptedKey: ', encryptedKey)
         buyerEncryptedKey = await openpgp.readMessage({
           armoredMessage: encryptedKey.data.buyerEncryptedKey
         })
-        console.log('buyerEncryptedKey: ', buyerEncryptedKey)
-
         const buyerPublicKey = await openpgp.readKey({ armoredKey: encryptedKey.data.buyerPublicKey});
 
-        console.log('buyerPublicKey: ', buyerPublicKey)
         const buyerPrivateKey = await openpgp.decryptKey({
           privateKey: await openpgp.readPrivateKey({ armoredKey: encryptedKey.data.buyerPrivateKey }),
-          passphrase
+          passphrase: passphrase.value
         });
-        console.log('buyerPrivateKey: ', buyerPrivateKey)
         const { data: decrypted } = await openpgp.decrypt({
           message: buyerEncryptedKey,
-          expectSigned: true,
           verificationKeys: buyerPublicKey,
           decryptionKeys: buyerPrivateKey
         });
-        console.log('decrypted: ', decrypted)
         buyerDecryptedKey = decrypted;
         return decrypted;
       }
       catch (e) {
         console.log("retrieveBuyerEncryptedKey error: ", e)
+        $q.notify({
+          color: "red-5",
+          textColor: "white",
+          icon: "warning",
+          message: "Decryption failed, please check passphrase"
+        });
       }
     }
 
-    const saveFile = async(fileKey, uri) => {
+    const saveFile = async(fileKey) => {
       try{
         const input = {
           "Bucket": s3Config.bucket,
@@ -115,9 +114,8 @@ export default defineComponent({
         const response = await client.send(command);
         authTagString = response.TagSet[0].Value;
         ivString = response.TagSet[1].Value;
-        keyString = response.TagSet[2].Value;
         buyerDecryptedKey = await retrieveBuyerEncryptedKey();
-        await downloadFile(uri, 'testDecrypt.jpg', buyerDecryptedKey, ivString, authTagString);
+        await downloadFile(s3Config.endpoint + fileKey, 'testDecrypt.jpg', buyerDecryptedKey, ivString, authTagString);
       }
       catch (e) {
         console.log("saveFile error: ", e)
@@ -141,7 +139,8 @@ export default defineComponent({
         const decrypt =  new TransformStream({
           transform: async (chunk, controller) => {
             try {
-              chunk = toBuffer(chunk);
+              chunk = Buffer.from(chunk.buffer);
+              console.log("chunk: ", chunk)
             } catch (err) {
               console.error(err);
             }

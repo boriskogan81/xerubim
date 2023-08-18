@@ -272,4 +272,25 @@ router.post('/publicKey', async (req, res) => {
     }
 });
 
+router.post('/contractSubscriptions', async (req, res) => {
+    try {
+        await helpers.contractSubscriptions(req);
+        return ReS(res, 'successfully saved', 200);
+    } catch (e) {
+        console.log(`Contract subscription failed`, {e});
+        ReE(res, e, 400);
+    }
+});
+
+router.post('/contractCentroid', async (req, res) => {
+    try {
+        const centroid = await helpers.contractCentroid(req);
+        return ReS(res, centroid, 200);
+    } catch (e) {
+        console.log(`Contract centroid failed`, {e});
+        ReE(res, e, 400);
+    }
+});
+
+
 module.exports = router;

@@ -39,7 +39,6 @@
 
       </q-card-actions>
       <q-card-section v-if="contractStore.selectedContract.data[6] === 'open'" class="q-pa-lg">
-        <q-input outlined v-model="fulfillmentNotes" label="Please add notes on the contract" style="width: auto"/>
         <q-uploader
           :url="`http://localhost:3000/uploadPlain/?address=${contractStore.selectedContract.address}`"
           label="Upload video/photo files"
@@ -50,6 +49,29 @@
           @uploaded="onFileUpload"
           ref="uploader"
         />
+      </q-card-section>
+      <q-card-section>
+        <q-form @submit="onSubmit">
+          <q-input v-model="email"
+                   label="Enter an email for contract updates"
+                   type="email"
+                   outlined
+                   bottom-slots
+                   @blur="updateEmailVerification"
+                   autofocus
+                   :error="showError"
+                   error-message="Please enter a valid email address."
+          >
+            <template v-slot:error>
+              Must be a valid email address.
+            </template>
+          </q-input>
+          <q-btn
+            color="primary"
+            @click="onSubmit" flat
+            :disabled="!emailValid"
+          >Subscribe</q-btn>
+        </q-form>
       </q-card-section>
     </q-card>
   </q-card>
@@ -66,6 +88,7 @@ import {useContractStore} from "stores/contract-store";
 import MediaDisplay from "components/MediaDisplay.vue";
 
 import {useQuasar} from "quasar";
+import {api} from "boot/axios";
 //:url="`http://localhost:3000/upload/contractAddress/${contractStore.selectedContract.address}`"
 export default defineComponent({
   name: "SelectedContractDialog",
@@ -78,6 +101,10 @@ export default defineComponent({
     const isReporter = (contract) => contract.data[1].toLowerCase() === web3Store.account.toLowerCase();
     const fulfillmentFields = ref(false);
     const fulfillmentNotes = ref('');
+    const email = ref('');
+    const emailValid = ref(false);
+    const showError = ref(false);
+
     const acceptProposal = async() => {
       const dismiss = $q.notify({
         spinner: true,
@@ -159,6 +186,44 @@ export default defineComponent({
         });
       }
     }
+
+    const onSubmit = async () => {
+      try{
+        await api.post('/contractSubscriptions', {
+          email: email.value,
+          contractAddress: contractStore.selectedContract.address
+        })
+        $q.notify({
+          color: "green-4",
+          textColor: "white",
+          message: "Email subscribed successfully"
+        });
+        email.value = ''
+      }
+      catch(e){
+        console.log(e)
+        $q.notify({
+          color: "red-4",
+          textColor: "white",
+          icon: "error_outline",
+          message: "Subscription failed"
+        });
+      }
+    }
+
+    const updateEmailVerification = () => {
+      let reg =  /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,24}))$/
+      let valid = reg.test(email.value)
+      if (valid) {
+        console.log('email is valid')
+        emailValid.value = true
+        showError.value = false
+      } else {
+        console.log('email invalid')
+        emailValid.value = false
+        showError.value = true
+      }
+    }
     return {
       contractStore,
       web3Store,
@@ -168,7 +233,12 @@ export default defineComponent({
       fulfillmentNotes,
       acceptProposal,
       disputeProposal,
-      onFileUpload
+      onFileUpload,
+      email,
+      onSubmit,
+      emailValid,
+      showError,
+      updateEmailVerification
     }
   }
 })

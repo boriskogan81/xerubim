@@ -20,6 +20,8 @@ const indexRouter = require('./routes/index');
 
 const app = express();
 const cors = require('cors');
+const {listenerSetup} = require("./listener");
+const listener = require('./listener').listenerSetup();
 
 app.use(logger('dev'));
 app.use(express.json());
@@ -33,6 +35,7 @@ app.use((req, res, next) => {
 })
 app.use(cors({ origin: 'http://localhost:9000'}))
 app.use('/', indexRouter);
-app.listen(8080)
+app.listen(8080);
+listenerSetup()
 
 module.exports = app;

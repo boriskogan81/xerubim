@@ -507,6 +507,32 @@ const savePublicKey = async (req) => {
     }
 }
 
+const contractSubscriptions = async (req) => {
+    try{
+        const exists = await knex.raw(`SELECT * FROM event_subscriptions WHERE contractAddress = \'${req.body.contractAddress}' AND email = '${req.body.email}' LIMIT 1`);
+        if(exists[0].length === 0)
+            return await knex.raw(`INSERT INTO event_subscriptions (contractAddress, email) VALUES (\'${req.body.contractAddress}',  '${req.body.email}')`)
+        else
+            throw 'Subscription already exists'
+    }
+    catch(e) {
+        console.log(e);
+        throw e
+    }
+}
+
+const contractCentroid = async (req) => {
+    try{
+        const contractQuery = await knex.raw(`SELECT ST_Centroid(ST_GeomFromText(ST_AsText(coordinates))) FROM contract where address = \'${req.body.contractAddress}\' LIMIT 1`);
+        const coordinates = contractQuery[0][0]['ST_Centroid(ST_GeomFromText(ST_AsText(coordinates)))'];
+        return coordinates;
+    }
+    catch(e) {
+        console.log(e);
+        throw e
+    }
+};
+
 module.exports = {
     saveFile,
     ingestContractByAddress,
@@ -517,5 +543,7 @@ module.exports = {
     decryptWithPrivateKey,
     parseFile,
     retrieveBuyerEncryptedKey,
-    savePublicKey
+    savePublicKey,
+    contractSubscriptions,
+    contractCentroid
 };

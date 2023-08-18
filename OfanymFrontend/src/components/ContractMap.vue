@@ -57,6 +57,7 @@ import {
 } from "vue";
 import {useContractStore} from "stores/contract-store";
 import hereIcon from "assets/here.png";
+import { useRoute } from 'vue-router'
 
 import Web3 from "web3";
 import compiledFactory from "app/ethereum/build/MediaContractFactory.json";
@@ -137,6 +138,14 @@ export default defineComponent({
           selectInteraction.value.select.getFeatures().push(feature);
         }
       });
+      const route = useRoute();
+      const contractId = parseInt(route.query.contractId);
+      const x =  route.query.x;
+      const y =  route.query.y;
+      if(parseFloat(x) && parseFloat(y))
+        center.value = [parseFloat(x), parseFloat(y)];
+      console.log(center.value)
+      contractStore.selectContract(contractId);
     });
 
     return {

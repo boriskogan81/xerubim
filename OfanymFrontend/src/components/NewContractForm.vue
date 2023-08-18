@@ -91,7 +91,6 @@ export default defineComponent({
     ];
 
     const onSubmit = async () => {
-      console.log(web3Store.connected)
       if(!web3Store.connected){
         $q.notify({
           color: "red-5",

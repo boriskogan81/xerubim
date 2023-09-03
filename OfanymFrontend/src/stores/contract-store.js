@@ -97,7 +97,7 @@ export const useContractStore = defineStore('contracts', {
 
 const processCoords = (coordArray) => {
   let processedCoords = coordArray.map(coord =>
-    [coord.y, coord.x]
+    [coord.x, coord.y]
   )
   return [processedCoords];
 }

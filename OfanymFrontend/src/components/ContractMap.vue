@@ -115,8 +115,13 @@ export default defineComponent({
           resultArray[chunkIndex] = []; // start a new chunk
         }
         resultArray[chunkIndex].push(item);
+        console.log('result array', resultArray)
         return resultArray;
       }, []);
+      contractStore.newContract.location = contractStore.newContract.location.map((item) => {
+        return [item[1], item[0]];
+      });
+      console.log(contractStore.newContract.location)
       contractStore.setDrawEnable(false);
       context.emit('openNewContractDialog');
     };

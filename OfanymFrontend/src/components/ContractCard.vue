@@ -49,7 +49,6 @@
 
       </q-card-actions>
       <q-card-section v-if="contractStore.selectedContract.data[6] === 'open'" class="q-pa-lg">
-        <q-input outlined v-model="fulfillmentNotes" label="Please add notes on the contract" style="width: auto"/>
         <q-uploader
           :field-name="(contract) => contractStore.selectedContract"
           url="`http://localhost:3000/uploadPlain`"

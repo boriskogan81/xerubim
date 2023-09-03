@@ -292,5 +292,92 @@ router.post('/contractCentroid', async (req, res) => {
     }
 });
 
+router.get('/nonce', async (req, res) => {
+    try {
+        const nonce = await helpers.retrieveNonce(req);
+        return ReS(res, {nonce}, 200);
+    } catch (e) {
+        console.log(`Nonce retrieval failed`, {e});
+        ReE(res, e, 500);
+    }
+});
+
+router.post('/verifySignature', async (req, res) => {
+    try {
+        const verified = await helpers.verifySignature(req.body.address, req.body.signature);
+        return ReS(res, verified, 200);
+    }
+    catch (e) {
+        console.log(`Signature verification failed`, {e});
+        ReE(res, e, 500);
+    }
+});
+
+router.get('/messages', async (req, res) => {
+    try {
+        if(await helpers.verifySignature(req.query.address, req.query.signature)){
+            const messages = await helpers.retrieveMessages(req);
+            return ReS(res, messages, 200);
+        }
+        else{
+            return ReE(res, 'Signature verification failed', 400);
+        }
+    } catch (e) {
+        console.log(`Message retrieval failed`, {e});
+        ReE(res, e, 500);
+    }
+});
+
+router.put('/messages/:id/read', async (req, res) => {
+    try {
+        await helpers.markMessageRead(req);
+        return ReS(res, 'success', 200);
+    } catch (e) {
+        console.log(`Message marking failed`, {e});
+        ReE(res, e, 500);
+    }
+});
+
+router.post('/messages', async (req, res) => {
+    try {
+        if(await helpers.verifySignature(req.body.address, req.body.signature)){
+            const messages = await helpers.saveMessage(req);
+            return ReS(res, messages, 200);
+        }
+        else{
+            return ReE(res, 'Signature verification failed', 400);
+        }
+    }
+    catch (e) {
+        console.log(`Message sending failed`, {e});
+        ReE(res, e, 500);
+    }
+});
+
+router.delete('/messages', async (req, res) => {
+    try {
+        await helpers.messageDelete(req);
+        return ReS(res, 'success', 200);
+    } catch (e) {
+        console.log(`Message deletion failed`, {e});
+        ReE(res, e, 500);
+    }
+});
+
+router.post('/messageSubscribe', async (req, res) => {
+    try {
+        if(await helpers.verifySignature(req.body.address, req.body.signature)){
+            const subscribed = await helpers.messageSubscribe(req);
+            return ReS(res, 'success', 200);
+        }
+        else{
+            return ReE(res, 'Message subscription failed', 400);
+        }
+    }
+    catch (e) {
+        console.log(`Message subscription failed`, {e});
+        ReE(res, e, 500);
+    }
+});
 
 module.exports = router;

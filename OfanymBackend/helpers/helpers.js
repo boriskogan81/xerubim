@@ -1,45 +1,29 @@
 const EthCrypto = require('eth-crypto');
 const fs = require('fs');
 const crypto = require('crypto');
-const path = require("path");
 const {subtle} = require('crypto').webcrypto;
 const HDWalletProvider = require("@truffle/hdwallet-provider");
 const Web3 = require("web3");
 const config = require("../../OfanymFrontend/config/web3.json");
 const mnemonicPhrase = config.mnemonic;
+const providerUrl = config.providerUrl;
 const compiledFactory = require('../../OfanymFrontend/ethereum/build/MediaContractFactory.json');
 const compiledContract = require('../../OfanymFrontend/ethereum/build/MediaContract.json');
 const Contract = require('../models/contract').model;
-const ContractFactory = require('../models/contract_factory').model;
-const Media = require('../models/media').model;
-const ContractVersion = require('../models/smart_contract_version').model;
 const knex = require('../bootstrap/bookshelf_instance').knex;
-const Web3Storage = require('web3.storage');
 const streamingS3 = require('streaming-s3');
 const formidable = require('formidable');
-const Transform = require('stream').Transform;
 const s3Config = require('./s3helper').s3Config;
 const {Upload} = require('@aws-sdk/lib-storage');
 const {S3Client, PutObjectTaggingCommand } = require("@aws-sdk/client-s3");
 const {PassThrough} = require("stream");
-const {createEncryptStream, createDecryptStream, setPassword} = require('aes-encrypt-stream');
-const {pipeline} = require('stream');
-const {IncomingForm} = require("formidable");
-const {scrypt, randomFill, createCipheriv} = require('node:crypto');
-const multer = require("multer");
+const {createEncryptStream} = require('aes-encrypt-stream');
 const openpgp = require('openpgp');
-
-const storage = multer.memoryStorage()
-const upload = multer({ storage });
-const delay = (time) => {
-    return new Promise(resolve => setTimeout(resolve, time));
-}
-
-function encrypt(algorithm, buffer, key, iv) {
-    const cipher = crypto.createCipheriv(algorithm, key, iv);
-    const encrypted = Buffer.concat([cipher.update(buffer),cipher.final()]);
-    return encrypted;
-};
+const jwt = require('jsonwebtoken');
+const jwtSecret = require('../config/jwt.json').secret;
+const Mailgun = require('mailgun-js');
+const mailgunConfig = require('../config/mailgun.json');
+const mailgun = new Mailgun({apiKey: mailgunConfig.key, domain: mailgunConfig.domain});
 
 const client = new S3Client({
     region: s3Config.region,
@@ -50,52 +34,22 @@ const client = new S3Client({
     //  endpoint: s3Config.endpoint
 });
 
-function getAccessToken() {
-    return 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkaWQ6ZXRocjoweDI2RWE4N2I3OTlEY2QyYWFBNDBGQzFkMjNlOWM5MEZkZDMyM0E3NjMiLCJpc3MiOiJ3ZWIzLXN0b3JhZ2UiLCJpYXQiOjE2NjMyNDkzMjgwMjcsIm5hbWUiOiJYZXJ1YmltU2FuZGJveCJ9.9PiUVskWavMIJcOvHkBspvvQNGM2QaN0m3rxr19D8fE'
-    //return process.env.WEB3STORAGE_TOKEN
-}
 
-function makeStorageClient() {
-    return new Web3Storage.Web3Storage({token: getAccessToken()})
-}
+
 
 let provider = new HDWalletProvider({
     mnemonic: {
         phrase: mnemonicPhrase
     },
-    providerOrUrl: "https://goerli.infura.io/v3/3aab413e2af7425796d7100d42dc889a",
+    providerOrUrl: providerUrl,
     networkCheckTimeout: 100000,
     timeoutBlocks: 200
 });
 
 const web3 = new Web3(provider);
 
-const saveFile = async (key, fileName, inputFilePath, encrypted, contractAddress, buyerKey) => {
+const saveFile = async (key, fileName, inputFilePath) => {
     try {
-        // const input = fs.createReadStream(inputFilePath);
-        // const hash = crypto.createHash('sha256');
-        // hash.setEncoding('hex');
-        // let fileHash = '';
-        // input.on('end', function() {
-        //     hash.end();
-        //     console.log(hash.read());
-        //     fileHash = hash.read();
-        // });
-        //
-        // input.pipe(hash);
-        //
-        // const existingMedia = await new Media()
-        //     .where({'hash': fileHash})
-        //     .fetch({require: false});
-        // if (existingMedia)
-        //     return
-        //
-        // const cryptoKey = await subtle.generateKey({name: 'AES-GCM', length: 256}, true, ['encrypt', 'decrypt']);
-        // const key = await subtle.exportKey('raw', cryptoKey);
-        // const buyerEncryptedKey = await EthCrypto.encryptWithPublicKey(buyerKey, String(key));
-        // const iv = crypto.randomBytes(16);
-        // const cipher = crypto.createCipheriv('aes-256-ctr', key, iv, null);
-        // setPassword(new Buffer(key));
         const inputFileStream = fs.createReadStream(inputFilePath);
 
         const uploader = new streamingS3(createEncryptStream(inputFileStream), {
@@ -130,33 +84,11 @@ const saveFile = async (key, fileName, inputFilePath, encrypted, contractAddress
         });
 
         uploader.begin();
-        // const storage = makeStorageClient();
-        // const keyString = new Int32Array(key).toString();
-        // await knex.raw(`INSERT INTO crypto (buyerEncryptedKey, iv, hash, contractAddress, keystring) VALUES (\'${encrypted}\', \'${iv.toString('hex')}\',\'${hash}\', \'${contractAddress}\', \'${keyString}\')`)
         return fileName
 
     } catch (e) {
         console.log(e);
         throw e;
-    }
-}
-
-const decryptFile = async (privateKey, keyObject, inputFilePath, outputFilePath, fileName) => {
-    try {
-        const decryptedKey = await EthCrypto.decryptWithPrivateKey(privateKey, keyObject);
-
-        // const iv = redis.hget(key, 'iv');
-        const decipher = crypto.createDecipheriv('aes-256-ctr', decryptedKey, iv, null);
-        const input = fs.createReadStream(inputFilePath);
-        const output = fs.createWriteStream(path.join(outputFilePath, fileName));
-
-        input.pipe(decipher).pipe(output);
-
-        output.on('finish', function () {
-            console.log('Decrypted file written to disk!');
-        });
-    } catch (error) {
-        console.log(error)
     }
 }
 
@@ -249,7 +181,7 @@ const retrieveContracts = async (query) => {
             .query((qb) => {
                 raw = 'contract.id != 0'
                 if (corners)
-                    raw += ` AND (ST_INTERSECTS(ST_GeomFromText("POLYGON((${corners[0]} ${corners[1]}, ${corners[0]} ${corners[3]}, ${corners[2]} ${corners[3]}, ${corners[2]} ${corners[1]}, ${corners[0]} ${corners[1]}))", 4326), contract.coordinates))`
+                    raw += ` AND (ST_INTERSECTS(ST_GeomFromText("POLYGON((${corners[1]} ${corners[0]}, ${corners[3]} ${corners[0]}, ${corners[3]} ${corners[2]}, ${corners[1]} ${corners[2]}, ${corners[1]} ${corners[0]}))", 4326, "axis-order=lat-long"), contract.coordinates))`
                 if (searchString) {
                     raw += ` AND (contract.data->'$' LIKE "%${searchString}%")`
                 }
@@ -533,6 +465,138 @@ const contractCentroid = async (req) => {
     }
 };
 
+const retrieveNonce = async (req) => {
+    try{
+        const nonceQuery = await knex.raw(`SELECT nonce FROM users where address = \'${req.query.address}\' LIMIT 1`);
+        let nonce;
+        if(!nonceQuery[0].length){
+            nonce = generateRandomString(32)
+            await knex.raw(`INSERT INTO users (address, nonce) VALUES (\'${req.query.address}',  '${nonce}')`)
+        }
+        else
+            nonce = nonceQuery[0][0].nonce;
+        return nonce;
+    }
+    catch(e) {
+        console.log(e);
+        throw e
+    }
+};
+
+const verifySignature = async (address, signature) => {
+    try{
+        const nonceQuery = await knex.raw(`SELECT nonce FROM users WHERE address = \'${address}\' LIMIT 1`);
+        const nonce = nonceQuery[0][0].nonce;
+        const recoveredAddress =  web3.eth.accounts.recover(nonce, signature);
+        if(recoveredAddress.toLowerCase() === address.toLowerCase()){
+            await knex.raw(`UPDATE users SET nonce = \'${generateRandomString(32)}\' WHERE address = \'${address}\'`)
+            return true;
+        }
+        else
+            return false;
+    }
+    catch(e) {
+        console.log(e);
+        throw e
+    }
+
+}
+
+const retrieveMessages = async (req) => {
+    try{
+        const searchString = req.query.searchString ? ` AND (title LIKE "%${req.query.searchString}%" OR text LIKE "%${req.query.searchString}%")` : '';
+        const inboxMessages = await knex.raw(`SELECT * FROM messages WHERE \`to\` = \'${req.query.address}\' ${searchString} AND deleted = 0 ORDER BY timestamp DESC LIMIT 10 OFFSET ${req.query.currentInbox}`);
+        const sentMessages = await knex.raw(`SELECT * FROM messages WHERE \`from\` = \'${req.query.address}\' ${searchString} ORDER BY timestamp DESC LIMIT 10 OFFSET ${req.query.currentSent}`);
+        return {
+            inboxMessages: inboxMessages[0],
+            sentMessages: sentMessages[0]
+        }
+    }
+    catch(e) {
+        console.log(e);
+        throw e
+    }
+};
+
+const saveMessage = async (req) => {
+    try{
+        const message = req.body.message;
+        await knex.raw(`INSERT INTO messages (\`to\`, \`from\`, title, text, contract, responseTo, timestamp) VALUES (\'${message.to}', \'${req.body.address}',  '${message.title}', '${message.text}', '${message.contract}', '${message.responseTo}', '${new Date().getTime()}')`)
+        const exists = await knex.raw(`SELECT * FROM email_subscriptions WHERE address = \'${message.to}'`);
+        if(exists[0].length !== 0){
+            const subscription = exists[0][0]
+            const ofanymURL = `${mailgunConfig.baseURL}`;
+            const data = {
+                from: `Ofanym <postmaster@${mailgunConfig.domain}>`,
+                to: subscription.email,
+                subject: "New Message At Ofanym",
+                template: "Message Notification\n",
+                'h:X-Mailgun-Variables': JSON.stringify({
+                    ofanymURL: ofanymURL
+                })
+            }
+            mailgun.messages().send(data, function (error, body) {
+                console.log(body);
+            });
+        }
+        return true;
+    }
+    catch(e) {
+        console.log(e);
+        throw e
+    }
+}
+
+const generateRandomString = (length) => {
+    let result = '';
+    const characters =
+        'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    const charactersLength = characters.length;
+    for (let i = 0; i < length; i++) {
+        result += characters.charAt(Math.floor(Math.random() * charactersLength));
+    }
+    return result;
+};
+
+const markMessageRead = async (req) => {
+    try{
+        const message = await knex.raw(`UPDATE messages SET \`read\` = 1 WHERE id = \'${req.body.id}' AND \`to\` = \'${req.body.address}'`)
+        return true;
+    }
+    catch(e) {
+        console.log(e);
+        throw e
+    }
+}
+
+const messageDelete = async (req) => {
+    try{
+        if(!await verifySignature(req.body.address, req.body.signature))
+            throw 'Invalid signature'
+        const message = await knex.raw(`UPDATE messages SET \`deleted\` = 1 WHERE id = \'${req.body.id}' AND \`to\` = \'${req.body.address}'`)
+        return true;
+    }
+    catch(e) {
+        console.log(e);
+        throw e
+    }
+}
+
+const messageSubscribe = async (req) => {
+    try{
+        const exists = await knex.raw(`SELECT * FROM email_subscriptions WHERE address = \'${req.body.address}'`);
+        if(exists[0].length !== 0)
+            return await knex.raw(`UPDATE email_subscriptions SET  \`email\` = \'${req.body.email}' WHERE address = \'${req.body.address}'`);
+        else
+            return await knex.raw(`INSERT INTO email_subscriptions (address, email) VALUES (\'${req.body.address}',  '${req.body.email}')`)
+
+    }
+    catch(e) {
+        console.log(e);
+        throw e
+    }
+}
+
 module.exports = {
     saveFile,
     ingestContractByAddress,
@@ -545,5 +609,12 @@ module.exports = {
     retrieveBuyerEncryptedKey,
     savePublicKey,
     contractSubscriptions,
-    contractCentroid
+    contractCentroid,
+    retrieveNonce,
+    verifySignature,
+    retrieveMessages,
+    saveMessage,
+    markMessageRead,
+    messageDelete,
+    messageSubscribe
 };

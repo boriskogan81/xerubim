@@ -14,8 +14,11 @@
         Ofanym
       </q-toolbar-title>
       <div>v{{ version }}</div>
+      <q-btn class="q-mr-lg" v-if="isPlatform">
+        Contract Table
+      </q-btn>
       <q-btn class="q-mr-lg" @click="toggleRightDrawer">
-        <q-avatar color="red" v-if="unread().length" text-color="white">{{ unread().length }}</q-avatar>
+        <q-avatar color="red" v-if="unread() && unread().length" text-color="white">{{ unread().length }}</q-avatar>
         Messages
       </q-btn>
     </q-toolbar>
@@ -34,15 +37,14 @@
 
 <script>
 import {
-  defineComponent,
+  defineComponent, onMounted,
   ref
 } from "vue";
 import {useMessageStore} from "stores/message-store";
 import json from "app/package.json";
 import {useWeb3Store} from "stores/web3-store";
 import {useQuasar} from "quasar";
-import Web3 from "web3";
-
+import {platform} from "../../config/web3.json";
 export default defineComponent({
   name: "MainHeader",
   data() {
@@ -54,6 +56,7 @@ export default defineComponent({
     const web3Store = useWeb3Store();
     const $q = useQuasar();
     const messageStore = useMessageStore();
+    const isPlatform = ref(false);
     const toggleLeftDrawer = () => context.emit('toggleLeftDrawer');
     const toggleRightDrawer = () => context.emit('toggleRightDrawer');
     const connect = async () => {
@@ -81,16 +84,22 @@ export default defineComponent({
       }
     };
     const unread = () => {
-      return messageStore.messages.filter(message => !message.read);
+      return messageStore.inboxMessages && messageStore.inboxMessages.filter(message => !message.read);
     };
     let displayConnectPrompt = ref(!web3Store.connected);
+
+    onMounted(async() => {
+      await web3Store.setup();
+      isPlatform.value = web3Store.account && web3Store.account.toLowerCase() === platform.toLowerCase();
+    });
     return {
       toggleLeftDrawer,
       toggleRightDrawer,
       connect,
       unread,
       displayConnectPrompt,
-      web3Store
+      web3Store,
+      isPlatform
     }
   }
 })

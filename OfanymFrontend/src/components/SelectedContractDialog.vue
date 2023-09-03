@@ -27,6 +27,14 @@
         <div :class="contractStore.selectedContract.data[6] === 'open' && 'active'">
           STATUS: {{ contractStore.selectedContract.data[6] }}
         </div>
+        <div>
+          CLIENT: {{ contractStore.selectedContract.data[0] === web3Store.account ? 'You' : contractStore.selectedContract.data[0] }}
+          <q-btn icon="mail" color="green" @click="message(contractStore.selectedContract.data[0])">Message</q-btn>
+        </div>
+        <div v-if="contractStore.selectedContract.data[1] !== '0x0000000000000000000000000000000000000000'">
+          REPORTER: {{ contractStore.selectedContract.data[1] === web3Store.account ? 'You' : contractStore.selectedContract.data[1] }}
+          <q-btn icon="mail" color="green" @click="message(contractStore.selectedContract.data[1])">Message</q-btn>
+        </div>
         <div v-if="contractStore.selectedContract.data[6] === 'proposed' && isCustomer(contractStore.selectedContract)">
           MEDIA:
           <MediaDisplay />
@@ -85,6 +93,7 @@ import {
 } from "vue";
 import {useWeb3Store} from "stores/web3-store";
 import {useContractStore} from "stores/contract-store";
+import {useMessageStore} from "stores/message-store";
 import MediaDisplay from "components/MediaDisplay.vue";
 
 import {useQuasar} from "quasar";
@@ -97,6 +106,7 @@ export default defineComponent({
     const $q = useQuasar();
     const contractStore = useContractStore();
     const web3Store = useWeb3Store();
+    const messageStore = useMessageStore();
     const isCustomer = (contract) => contract.data[0].toLowerCase() === web3Store.account.toLowerCase();
     const isReporter = (contract) => contract.data[1].toLowerCase() === web3Store.account.toLowerCase();
     const fulfillmentFields = ref(false);
@@ -224,6 +234,15 @@ export default defineComponent({
         showError.value = true
       }
     }
+
+    const message = async (address) => {
+      messageStore.newMessage.contract = contractStore.selectedContract.id;
+      messageStore.newMessage.to = address;
+      messageStore.newMessage.from = web3Store.account;
+      messageStore.newMessage.title = `Re: ${contractStore.selectedContract.data[3]} `;
+      messageStore.setMessageDialog(true);
+    }
+
     return {
       contractStore,
       web3Store,
@@ -238,7 +257,8 @@ export default defineComponent({
       onSubmit,
       emailValid,
       showError,
-      updateEmailVerification
+      updateEmailVerification,
+      message
     }
   }
 })

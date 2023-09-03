@@ -114,28 +114,7 @@ export default defineComponent({
         });
       } else {
         try {
-          console.log('getting signature')
-          const signatureHash = await window.ethereum.request({
-            "method": "personal_sign",
-            "params": [
-              hexer('Signature verification for video file encryption'),
-              web3Store.account
-            ]
-          });
-          await api.post('/signatures', {
-            signature: signatureHash,
-            address: web3Store.account
-          }).catch(function (e){
-            dismiss();
-            $q.notify({
-              color: "red-4",
-              textColor: "white",
-              icon: "error_outline",
-              message: "Contract creation failed"
-            });
 
-            throw e;
-          })
           console.log('creating contract')
 
           try{

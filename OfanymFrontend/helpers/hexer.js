@@ -3,8 +3,6 @@ export default function hexer (input) {
   const hex = utf8.map(n => n.toString(16));
   return '0x' + hex.join('');
 }
-
-// From https://stackoverflow.com/a/18729931
 function toUTF8Array(str) {
   var utf8 = [];
   for (var i=0; i < str.length; i++) {

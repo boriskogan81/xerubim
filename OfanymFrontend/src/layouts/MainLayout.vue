@@ -1,6 +1,9 @@
 <template>
   <q-layout view="lHh Lpr lFf">
     <MainHeader @toggleLeftDrawer="toggleLeftDrawer" @toggleRightDrawer="toggleRightDrawer" />
+    <q-dialog v-model="messageStore.sendMessageDialog" v-on:hide="resetNewMessage">
+      <NewMessageForm/>
+    </q-dialog>
     <q-drawer
       v-model="leftDrawerOpen"
       show-if-above
@@ -74,38 +77,9 @@
       bordered
       class="q-pa-md"
       side="right"
-      :width="400"
+      :width="700"
     >
-      <q-list>
-        <q-card v-for="message in messageStore.messages"
-                :key="message.id"
-
-                :class="messageStore.selectedMessage && messageStore.selectedMessage.id === message.id? 'shadow-5 q-ma-sm selectedcard':'q-ma-sm unselectedcard'"
-        >
-          <q-card-section>
-            <div class="row justify-between">
-              <div class="text-h6">{{ message.title }}</div>
-              <q-btn @click="messageToggle(message.id)">{{ messageOpen(message.id) ? "Close" : "Open" }}</q-btn>
-            </div>
-          </q-card-section>
-          <q-card-section class="column items-center q-pb-none">
-            <div class="row justify-between">
-              <div>From:</div>
-              <div style="text-overflow: ellipsis;">{{ message.from }}</div>
-            </div>
-
-            <div style="text-overflow: ellipsis;">To: {{ message.from }}</div>
-            <div style="text-overflow: ellipsis;">Sent: {{ date.formatDate(message.timestamp, "HH:mm DD-MMM-YYYY") }}
-            </div>
-          </q-card-section>
-          <q-card-section v-if="messageOpen(message.id)">
-            <div style="text-overflow: ellipsis;" @click="contractStore.selectContract(message.contract)">Related
-              contract: {{ message.contract }}
-            </div>
-            <div>{{ message.text }}</div>
-          </q-card-section>
-        </q-card>
-      </q-list>
+    <MailBox />
     </q-drawer>
     <q-page-container>
       <router-view style="width: 100vw;"/>
@@ -114,26 +88,33 @@
 </template>
 
 <script>
-import {defineComponent, ref, watch} from "vue";
+import {defineComponent, ref, watch, onMounted} from "vue";
 import {useContractStore} from "stores/contract-store";
 import {useMessageStore} from "stores/message-store";
+import {useAuthStore} from "stores/auth-store";
+import {useWeb3Store} from "stores/web3-store";
 import {date} from "quasar";
 import MainHeader from "components/MainHeader.vue";
+import MailBox from "components/MailBox.vue";
+import NewMessageForm from "components/NewMessageForm.vue";
 
 export default defineComponent({
   name: "MainLayout",
-  components: {MainHeader},
+  components: {NewMessageForm, MainHeader, MailBox},
   setup() {
     const currentPage = ref(1);
     const leftDrawerOpen = ref(false);
     const rightDrawerOpen = ref(false);
+    const messageDialogOpen = ref(false);
     const contractStore = useContractStore();
     const messageStore = useMessageStore();
+    const authStore = useAuthStore();
+    const web3Store = useWeb3Store();
     const searchString = ref('');
     const contractToggle = ref("allContracts");
     const timelinessToggle = ref("current");
     const unread = () => {
-      return messageStore.messages.filter(message => !message.read);
+      return messageStore.inboxMessages.filter(message => !message.read);
     };
     const options = [
       {
@@ -158,7 +139,7 @@ export default defineComponent({
         });
       else
         openedMessages.value.push(id);
-      if (!messageStore.messages.find(message => message.id === id).read)
+      if (!messageStore.inboxMessages.find(message => message.id === id).read)
         messageStore.readMessage(id);
     };
 
@@ -173,16 +154,50 @@ export default defineComponent({
     watch(searchString, async (searchString) => {
       await contractStore.updateQuery({...contractStore.contractQuery, searchString, corners:contractStore.contractQuery.corners})
     })
+    const loadMessages = async () => {
+      try{
+        await authStore.fetchNonce(web3Store.account);
+        const signatureHash = await window.ethereum.request({
+          "method": "personal_sign",
+          "params": [
+            authStore.nonce,
+            web3Store.account
+          ]
+        });
+        await messageStore.fetchMessages(web3Store.account, signatureHash);
+      }
+      catch(e){
+        console.log('loading messages error: ', e)
+      }
+    };
+
+    const resetNewMessage = () => {
+      messageStore.newMessage = {
+        title: "",
+        text: "",
+        to: "",
+        timestamp: null,
+        responseTo: 0,
+        contract: 0
+      };
+    }
+
     return {
       contractStore,
       messageStore,
+      authStore,
+      web3Store,
       leftDrawerOpen,
       rightDrawerOpen,
+      messageDialogOpen,
       toggleLeftDrawer() {
         leftDrawerOpen.value = !leftDrawerOpen.value;
       },
       toggleRightDrawer() {
         rightDrawerOpen.value = !rightDrawerOpen.value;
+      },
+      toggleMessageDialog() {
+        messageDialogOpen.value = !messageDialogOpen.value;
       },
       contractToggle,
       options,
@@ -195,7 +210,11 @@ export default defineComponent({
       currentPage,
       changePage,
       timelinessToggle,
-      changeTimeliness
+      changeTimeliness,
+      loadMessages,
+      MailBox,
+      NewMessageForm,
+      resetNewMessage
     };
   },
 

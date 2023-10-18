@@ -19,11 +19,10 @@ const {S3Client, PutObjectTaggingCommand } = require("@aws-sdk/client-s3");
 const {PassThrough} = require("stream");
 const {createEncryptStream} = require('aes-encrypt-stream');
 const openpgp = require('openpgp');
-const jwt = require('jsonwebtoken');
-const jwtSecret = require('../config/jwt.json').secret;
 const Mailgun = require('mailgun-js');
 const mailgunConfig = require('../config/mailgun.json');
 const mailgun = new Mailgun({apiKey: mailgunConfig.key, domain: mailgunConfig.domain});
+const {logger} = require('../logger');
 
 const client = new S3Client({
     region: s3Config.region,
@@ -73,14 +72,17 @@ const saveFile = async (key, fileName, inputFilePath) => {
         // All parts uploaded, but upload not yet acknowledged.
         uploader.on('uploaded', function (stats) {
             console.log('Upload stats: ', stats);
+            logger.info(`File ${fileName} uploaded to S3`, {stats})
         });
 
         uploader.on('finished', function (resp, stats) {
             console.log('Upload finished: ', resp);
+            logger.info(`File ${fileName} upload finished`, {resp})
         });
 
         uploader.on('error', function (e) {
             console.log('Upload error: ', e);
+            logger.error(`File ${fileName} upload error`, {e})
         });
 
         uploader.begin();
@@ -111,6 +113,7 @@ const ingestContracts = async () => {
             }
         } catch (e) {
             console.log(e);
+            logger.error(e, 'Ingest contract failed');
         }
     }))
 }
@@ -130,6 +133,7 @@ const syncContractByAddress = async (address) => {
             .upsert({data});
     } catch (e) {
         console.log(e);
+        logger.error(e, 'Sync contract failed');
     }
 
 }
@@ -155,8 +159,10 @@ const ingestContractByAddress = async (address) => {
         }
 
         await knex.raw(`INSERT INTO contract(data, address, coordinates,  smart_contract_version_id) VALUES (\'${JSON.stringify(data)}\', \'${address}\',  ${geoString(data[10])}, 1)`);
+        logger.info(`Contract ${address} ingested`, {data})
     } catch (e) {
         console.log(e);
+        logger.error(e, 'Ingest contract failed');
     }
 
 }
@@ -206,7 +212,7 @@ const retrieveContracts = async (query) => {
                 pageSize: pageSize || 10, // Defaults to 10 if not specified
                 page: page || 1
             });
-
+        logger.info(`Contracts retrieved`, {contracts})
         return contracts;
     }
 
@@ -223,7 +229,7 @@ const retrieveContracts = async (query) => {
 
     await Promise.all(updatedContracts);
     const newContracts = await cachedContracts(corners, searchString, reporterAddress, customerAddress, orderBy, pageSize, page);
-
+    logger.info(`Contracts retrieved`, {newContracts})
     return {
         contracts: newContracts,
         pagination: newContracts.pagination
@@ -234,7 +240,8 @@ const storeSignature = async (signature, address) => {
     try {
         await knex.raw(`INSERT INTO signature (signature, address) VALUES (\'${signature}', '${address}')`)
     } catch (e) {
-        console.log(e)
+        console.log(e);
+        logger.error(e, 'Store signature failed');
     }
 }
 
@@ -250,17 +257,21 @@ const encryptWithSignature = async (plaintext, address, contractAddress, type) =
 
         if(type === 'customer')
             await knex.raw(`INSERT INTO crypto (contractAddress, buyerEncryptedKey) VALUES (\'${contractAddress}\', \'${JSON.stringify(encryptedObject)}\')`)
+        logger.info(`Encrypted with signature`, {encryptedObject})
     } catch (e) {
         console.log(e)
+        logger.error(e, 'Encrypt with signature failed');
     }
 }
 
 const decryptWithPrivateKey = async (ciphertext, privateKey) => {
     try {
         const decrypted = await EthCrypto.decryptWithPrivateKey(privateKey, EthCrypto.cipher.parse(ciphertext));
+        logger.info(`Decrypted with private key`, {decrypted})
         return decrypted;
     } catch (e) {
         console.log(e)
+        logger.error(e, 'Decrypt with private key failed');
     }
 }
 
@@ -369,9 +380,11 @@ const parseFile = async (req) => {
                     );
 
                 s3Uploads.push(uploadRequest);
+                logger.info(`File ${file.originalFilename} uploaded to S3`, {file})
                 return body;
             } catch (e) {
                 console.log(e);
+                logger.error(e, 'File upload failed');
                 throw e;
             }
         }
@@ -427,6 +440,7 @@ const retrieveBuyerEncryptedKey = async (query) => {
     const buyerKeys = await knex.raw(`SELECT publicKey, privateKey FROM public_key WHERE address = \'${contractAddress}\' LIMIT 1`);
     const buyerPublicKey = buyerKeys[0][0].publicKey;
     const buyerPrivateKey = buyerKeys[0][0].privateKey;
+    logger.info(`Buyer key retrieved`, {buyerEncryptedKey, buyerPublicKey, buyerPrivateKey})
     return { buyerEncryptedKey, buyerPublicKey, buyerPrivateKey};
 }
 
@@ -436,6 +450,7 @@ const savePublicKey = async (req) => {
     }
     catch(e) {
         console.log(e);
+        logger.error(e, 'Save public key failed');
     }
 }
 
@@ -449,6 +464,7 @@ const contractSubscriptions = async (req) => {
     }
     catch(e) {
         console.log(e);
+        logger.error(e, 'Contract subscription failed');
         throw e
     }
 }
@@ -461,6 +477,7 @@ const contractCentroid = async (req) => {
     }
     catch(e) {
         console.log(e);
+        logger.error(e, 'Contract centroid failed');
         throw e
     }
 };
@@ -478,7 +495,8 @@ const retrieveNonce = async (req) => {
         return nonce;
     }
     catch(e) {
-        console.log(e);
+        console.log(e)
+        logger.error(e, 'Retrieve nonce failed');
         throw e
     }
 };
@@ -497,6 +515,7 @@ const verifySignature = async (address, signature) => {
     }
     catch(e) {
         console.log(e);
+        logger.error(e, 'Verify signature failed');
         throw e
     }
 
@@ -507,6 +526,7 @@ const retrieveMessages = async (req) => {
         const searchString = req.query.searchString ? ` AND (title LIKE "%${req.query.searchString}%" OR text LIKE "%${req.query.searchString}%")` : '';
         const inboxMessages = await knex.raw(`SELECT * FROM messages WHERE \`to\` = \'${req.query.address}\' ${searchString} AND deleted = 0 ORDER BY timestamp DESC LIMIT 10 OFFSET ${req.query.currentInbox}`);
         const sentMessages = await knex.raw(`SELECT * FROM messages WHERE \`from\` = \'${req.query.address}\' ${searchString} ORDER BY timestamp DESC LIMIT 10 OFFSET ${req.query.currentSent}`);
+        logger.info(`Messages retrieved`, {inboxMessages, sentMessages})
         return {
             inboxMessages: inboxMessages[0],
             sentMessages: sentMessages[0]
@@ -514,6 +534,7 @@ const retrieveMessages = async (req) => {
     }
     catch(e) {
         console.log(e);
+        logger.error(e, 'Retrieve messages failed');
         throw e
     }
 };
@@ -539,10 +560,12 @@ const saveMessage = async (req) => {
                 console.log(body);
             });
         }
+        logger.info(`Message saved`, {message})
         return true;
     }
     catch(e) {
         console.log(e);
+        logger.error(e, 'Save message failed');
         throw e
     }
 }
@@ -565,6 +588,7 @@ const markMessageRead = async (req) => {
     }
     catch(e) {
         console.log(e);
+        logger.error(e, 'Mark message read failed');
         throw e
     }
 }
@@ -578,6 +602,7 @@ const messageDelete = async (req) => {
     }
     catch(e) {
         console.log(e);
+        logger.error(e, 'Message deletion failed');
         throw e
     }
 }
@@ -593,6 +618,7 @@ const messageSubscribe = async (req) => {
     }
     catch(e) {
         console.log(e);
+        logger.error(e, 'Message subscription failed');
         throw e
     }
 }

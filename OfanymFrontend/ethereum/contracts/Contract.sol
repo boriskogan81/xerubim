@@ -122,6 +122,13 @@ contract MediaContract {
     emit contractStatusChanged(address(this), customer, status);
   }
 
+  function platformCloseContract() public {
+    require(msg.sender == platform);
+    status = 'closed';
+    customer.transfer(address(this).balance);
+    emit contractStatusChanged(address(this), customer, status);
+  }
+
   function renewContract(uint newExpiration) public {
     require(msg.sender == customer);
     require(hashCompareWithLengthCheck(status, 'open'));

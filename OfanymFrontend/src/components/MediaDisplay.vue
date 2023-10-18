@@ -132,42 +132,46 @@ export default defineComponent({
       decipher.setAuthTag(Buffer.from(authTagString, 'base64'));
 
       return fetch(url).then(res => {
-        const fileStream = createWriteStream(fileName);
-        const contentLength = res.headers['Content-Length'];
-        const writer = fileStream.getWriter();
-        let totalBytesRead = 0;
-        const decrypt =  new TransformStream({
-          transform: async (chunk, controller) => {
-            try {
-              chunk = Buffer.from(chunk.buffer);
-              console.log("chunk: ", chunk)
-            } catch (err) {
-              console.error(err);
-            }
+        try{
+          const fileStream = createWriteStream(fileName);
+          const contentLength = res.headers['Content-Length'];
+          const writer = fileStream.getWriter();
+          let totalBytesRead = 0;
+          const decrypt =  new TransformStream({
+            transform: async (chunk, controller) => {
+              try {
+                chunk = Buffer.from(chunk.buffer);
+              } catch (err) {
+                console.error(err);
+              }
 
-            // Decrypt chunk and send it out
-            const decryptedChunk = decipher.update(chunk);
-            controller.enqueue(decryptedChunk);
+              // Decrypt chunk and send it out
+              const decryptedChunk = decipher.update(chunk);
+              controller.enqueue(decryptedChunk);
 
-            // Emit a progress update
-            totalBytesRead += chunk.length;
-            emitProgress(totalBytesRead, contentLength, url);
-          },
-        })
+              // Emit a progress update
+              totalBytesRead += chunk.length;
+              emitProgress(totalBytesRead, contentLength, url);
+            },
+          })
 
-        if (res.body.pipeTo && res.body.pipeThrough) {
-          writer.releaseLock();
-          return res.body
-            .pipeThrough(decrypt)
-            .pipeTo(fileStream);
+          if (res.body.pipeTo && res.body.pipeThrough) {
+            writer.releaseLock();
+            return res.body
+              .pipeThrough(decrypt)
+              .pipeTo(fileStream);
+          }
+
+          const reader = res.body.getReader();
+          const pump = () =>
+            reader
+              .read()
+              .then(({ value, done }) => (done ? writer.close() : writer.write(value).then(pump)));
+          return pump();
         }
-
-        const reader = res.body.getReader();
-        const pump = () =>
-          reader
-            .read()
-            .then(({ value, done }) => (done ? writer.close() : writer.write(value).then(pump)));
-        return pump();
+        catch (e) {
+          console.log("downloadFile error: ", e)
+        }
       });
     };
 

@@ -30,24 +30,23 @@ export const useWeb3Store = defineStore('web3', {
     async setConnection(connection) {
       this.connected = connection;
     },
-    async setWeb3(web3){
+    async setWeb3(web3) {
       this.web3 = web3
     },
-    async setFactory(factory){
-      try{
+    async setFactory(factory) {
+      try {
         console.log('setting factory', factory)
         this.factory = new this.web3.eth.Contract(compiledFactory.abi, factoryAddress);
-      }
-      catch (e){
+      } catch (e) {
         console.log('error setting factory', e)
       }
       //factory
     },
-    async setAccount(account){
+    async setAccount(account) {
       this.account = account
     },
-    async getGasFeeForContractCall(contract){
-      try{
+    async getGasFeeForContractCall(contract) {
+      try {
         const gasAmount = await this.factory.methods.createContract(
           Math.floor(new Date(contract.expirationDate).getTime() / 1000),
           contract.task,
@@ -60,19 +59,18 @@ export const useWeb3Store = defineStore('web3', {
           value: web3Utils.toWei(contract.pay.toString(), 'ether')
         })
         return gasAmount.toString();
-      }
-      catch (e){
+      } catch (e) {
         console.log('gas fee estimation failed: ', e);
         throw e;
       }
     },
-    async createContract(contract){
-      try{
+    async createContract(contract) {
+      try {
 
-        const { privateKey, publicKey } = await openpgp.generateKey({
+        const {privateKey, publicKey} = await openpgp.generateKey({
           type: 'rsa',
           passphrase: contract.passphrase,
-          userIDs: [{ name: 'My Name', email: 'name@example.com' }]
+          userIDs: [{name: 'My Name', email: 'name@example.com'}]
         });
 
         console.log('publicKey', publicKey);
@@ -88,7 +86,7 @@ export const useWeb3Store = defineStore('web3', {
         })
 
         this.factory.events.contractDeployed((error, event) => {
-          if(error){
+          if (error) {
             console.log('error', error);
             throw error;
           }
@@ -111,35 +109,70 @@ export const useWeb3Store = defineStore('web3', {
             gas: await this.getGasFeeForContractCall(contract),
             value: web3Utils.toWei(contract.pay.toString(), 'ether')
           })
-          .on('transactionHash', function(hash){
+          .on('transactionHash', function (hash) {
             console.log('transactionHash', hash);
           })
-          .on('confirmation', function(confirmationNumber, receipt){
+          .on('confirmation', function (confirmationNumber, receipt) {
             console.log('confirmation', confirmationNumber, receipt);
           })
-          .on('receipt', function(receipt){
+          .on('receipt', function (receipt) {
             console.log('receipt', receipt);
           })
 
         const deployedAddress = await this.web3.eth.getTransactionReceipt(contractCreated.transactionHash);
 
         console.log('deployedAddress', deployedAddress);
-      }
-      catch (e){
+      } catch (e) {
         console.log('createContract error', e);
         throw e;
       }
     },
-    async getGasFeeForProposalCall (contract) {
+    async getGasFeeForProposalCall(contract) {
       const gasAmount = await contract.methods.acceptProposal()
         .estimateGas({from: this.account})
       return gasAmount.toString();
     },
     async acceptProposal(address) {
+      try {
+        const contract = new this.web3.eth.Contract(compiledContract.abi, address);
+        await contract.methods
+          .acceptProposal()
+          .send({
+            from: this.account,
+            gas: await this.getGasFeeForProposalCall(contract)
+          })
+          .on('error', function (error, receipt) {
+            console.log(error, receipt)
+            throw error;
+          });
+      } catch (error) {
+        console.log(error);
+        throw error;
+      }
+    },
+    async disputeProposal(address) {
+      try {
+        const contract = new this.web3.eth.Contract(compiledContract.abi, address);
+        await contract.methods
+          .disputeProposal()
+          .send({
+            from: this.account,
+            gas: await this.getGasFeeForProposalCall(contract)
+          })
+          .on('error', function (error, receipt) {
+            console.log(error, receipt);
+            throw error;
+          });
+      } catch (error) {
+        throw error
+      }
+    },
+
+    async closeContract(address) {
       try{
         const contract = new this.web3.eth.Contract(compiledContract.abi,address);
         await contract.methods
-          .acceptProposal()
+          .closeContract()
           .send({
             from: this.account,
             gas: await this.getGasFeeForProposalCall(contract)
@@ -154,32 +187,75 @@ export const useWeb3Store = defineStore('web3', {
         throw error;
       }
     },
-    async disputeProposal(address){
-        try{
-          const contract = new this.web3.eth.Contract(compiledContract.abi, address);
-          await contract.methods
-            .disputeProposal()
-            .send({
-              from: this.account,
-              gas: await this.getGasFeeForProposalCall(contract)
-            })
-            .on('error', function (error, receipt) {
-              console.log(error, receipt);
-              throw error;
-            });
-        }
-        catch(error){
-          throw error
-          }
-        },
-    fromWei (wei) {
+
+    async platformCloseContract(address) {
+      try{
+        const contract = new this.web3.eth.Contract(compiledContract.abi,address);
+        await contract.methods
+          .platformCloseContract()
+          .send({
+            from: this.account,
+            gas: await this.getGasFeeForProposalCall(contract)
+          })
+          .on('error', function (error, receipt) {
+            console.log(error, receipt)
+            throw error;
+          });
+      }
+      catch(error){
+        console.log(error);
+        throw error;
+      }
+    },
+
+    async acceptDispute(address) {
+      try{
+        const contract = new this.web3.eth.Contract(compiledContract.abi,address);
+        await contract.methods
+          .acceptDispute()
+          .send({
+            from: this.account,
+            gas: await this.getGasFeeForProposalCall(contract)
+          })
+          .on('error', function (error, receipt) {
+            console.log(error, receipt)
+            throw error;
+          });
+      }
+      catch(error){
+        console.log(error);
+        throw error;
+      }
+    },
+
+    async rejectDispute(address) {
+      try{
+        const contract = new this.web3.eth.Contract(compiledContract.abi,address);
+        await contract.methods
+          .rejectDispute()
+          .send({
+            from: this.account,
+            gas: await this.getGasFeeForProposalCall(contract)
+          })
+          .on('error', function (error, receipt) {
+            console.log(error, receipt)
+            throw error;
+          });
+      }
+      catch(error){
+        console.log(error);
+        throw error;
+      }
+    },
+
+    fromWei(wei) {
       return web3Utils.fromWei(wei, "ether")
     },
 
-    async setup (){
+    async setup() {
       console.log('setup')
       const provider = await detectEthereumProvider();
-      if(!provider) {
+      if (!provider) {
         console.log('no provider detected, aborting setup')
         return;
       }
@@ -193,7 +269,7 @@ export const useWeb3Store = defineStore('web3', {
     },
 
     async proposeMedia(address, cids) {
-      try{
+      try {
         const contract = new this.web3.eth.Contract(
           compiledContract.abi,
           address
@@ -212,11 +288,10 @@ export const useWeb3Store = defineStore('web3', {
           })
           .on('error', function (error, receipt) {
             console.log(error, receipt)
-            throw(error)
+            throw (error)
           });
 
-      }
-      catch(e){
+      } catch (e) {
         console.log(e);
       }
 

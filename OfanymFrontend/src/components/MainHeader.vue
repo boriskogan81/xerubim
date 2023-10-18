@@ -14,7 +14,7 @@
         Ofanym
       </q-toolbar-title>
       <div>v{{ version }}</div>
-      <q-btn class="q-mr-lg" v-if="isPlatform">
+      <q-btn class="q-mr-lg" v-if="isPlatform" to="/contractTable" exact>
         Contract Table
       </q-btn>
       <q-btn class="q-mr-lg" @click="toggleRightDrawer">

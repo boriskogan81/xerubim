@@ -10,20 +10,22 @@ process.on('uncaughtException', function (e) {
 global.__base = __dirname + '/';
 
 require('./global_functions');
+const PORT = process.env.PORT || 8080;
 
 const express = require('express');
 const path = require('path');
 const cookieParser = require('cookie-parser');
-const logger = require('morgan');
 
 const indexRouter = require('./routes/index');
+const { logger, contextMiddleware } = require('./logger.js');
 
 const app = express();
+app.use(contextMiddleware);
+
 const cors = require('cors');
 const {listenerSetup} = require("./listener");
 const listener = require('./listener').listenerSetup();
 
-app.use(logger('dev'));
 app.use(express.json());
 app.use(express.urlencoded({extended: false}));
 app.use(cookieParser());
@@ -35,7 +37,9 @@ app.use((req, res, next) => {
 })
 app.use(cors({ origin: 'http://localhost:9000'}))
 app.use('/', indexRouter);
-app.listen(8080);
+app.listen(PORT, () => {
+    logger.info(`Server listening at http://localhost:${PORT}`);
+});
 listenerSetup()
 
 module.exports = app;

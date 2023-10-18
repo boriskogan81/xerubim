@@ -1,4 +1,4 @@
-const logger = require('morgan');
+const logger = require('./logger');
 
 to = function (promise) {
     return promise
@@ -13,7 +13,6 @@ pe = require('parse-error');
 
 TE = function (err_message, log) { // TE stands for Throw Error
     if (log === true) {
-        const logger = require('morgan');
         logger.error('Backend throwing error ', err_message);
     }
     throw new Error(err_message);
@@ -26,7 +25,6 @@ ReE = function (res, err, code) { // Error Web Response
     if (res) {
         if (typeof code !== 'undefined')
             res.statusCode = code;
-
         return res.json({success: false, error: err});
     }
 };
@@ -48,6 +46,7 @@ process.on('unhandledRejection', ex => {
 
     if (Array.isArray(ex) && ex.length === 1)
         ex = ex[0];
+    logger.fatal(ex.stack, 'Backend process unhandled Rejection');
 
     console.log(`Backend process unhandled Rejection: ${ex.stack}`);
 });

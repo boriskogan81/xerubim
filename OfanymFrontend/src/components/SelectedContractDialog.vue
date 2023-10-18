@@ -29,11 +29,11 @@
         </div>
         <div>
           CLIENT: {{ contractStore.selectedContract.data[0] === web3Store.account ? 'You' : contractStore.selectedContract.data[0] }}
-          <q-btn icon="mail" color="green" @click="message(contractStore.selectedContract.data[0])">Message</q-btn>
+          <q-btn icon="mail" color="green" @click="message(contractStore.selectedContract.data[0])"/>
         </div>
         <div v-if="contractStore.selectedContract.data[1] !== '0x0000000000000000000000000000000000000000'">
           REPORTER: {{ contractStore.selectedContract.data[1] === web3Store.account ? 'You' : contractStore.selectedContract.data[1] }}
-          <q-btn icon="mail" color="green" @click="message(contractStore.selectedContract.data[1])">Message</q-btn>
+          <q-btn icon="mail" color="green" @click="message(contractStore.selectedContract.data[1])"/>
         </div>
         <div v-if="contractStore.selectedContract.data[6] === 'proposed' && isCustomer(contractStore.selectedContract)">
           MEDIA:

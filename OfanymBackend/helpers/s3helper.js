@@ -1,4 +1,4 @@
-const AWS = require('aws-sdk');
+//const AWS = require('aws-sdk');
 const config = require('../config/s3config.json');
 
 const s3Config = {

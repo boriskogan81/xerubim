@@ -30,6 +30,7 @@
     "mysql": "^2.18.1",
     "openpgp": "^5.9.0",
     "parse-error": "^0.2.0",
+    "pino": "^8.16.0",
     "redis-om": "^0.3.6",
     "streaming-s3": "^0.4.5",
     "string-to-arraybuffer": "^1.0.2",

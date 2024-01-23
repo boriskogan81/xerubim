@@ -21,7 +21,7 @@ import {useContractStore} from "stores/contract-store";
 import {useWeb3Store} from "stores/web3-store";
 import {useQuasar} from "quasar";
 import { Buffer } from "buffer";
-import { createWriteStream } from 'streamsaver';
+//import { streamsaver } from 'streamsaver';
 import toBuffer from 'typedarray-to-buffer';
 import { createDecipheriv } from 'browser-crypto';
 import { S3Client, GetObjectTaggingCommand } from "@aws-sdk/client-s3";
@@ -133,7 +133,7 @@ export default defineComponent({
 
       return fetch(url).then(res => {
         try{
-          const fileStream = createWriteStream(fileName);
+          const fileStream = window.streamSaver.createWriteStream(fileName);
           const contentLength = res.headers['Content-Length'];
           const writer = fileStream.getWriter();
           let totalBytesRead = 0;

@@ -1,23 +1,20 @@
 const Web3 = require("web3");
-const HDWalletProvider = require("@truffle/hdwallet-provider");
-const config = require("../OfanymFrontend/config/web3.json");
-const mnemonicPhrase = config.mnemonic;
+const config = require('./helpers/config_helper');
 const knex = require('./bootstrap/bookshelf_instance').knex;
 const compiledFactory = require('../OfanymFrontend/ethereum/build/MediaContractFactory.json');
 const compiledContract = require('../OfanymFrontend/ethereum/build/MediaContract.json');
 const Mailgun = require('mailgun-js');
-const mailgunConfig = require('./config/mailgun.json');
-const mailgun = new Mailgun({apiKey: mailgunConfig.key, domain: mailgunConfig.domain});
+const mailgun = new Mailgun({apiKey: config.mailgun.key, domain: config.mailgun.domain});
 
 const listenerSetup = async () => {
 
-    const wsProvider = new Web3.providers.WebsocketProvider("wss://goerli.infura.io/ws/v3/3fbb55944ed342f9a5775602cd8bc900");
+    const wsProvider = new Web3.providers.WebsocketProvider("wss://sepolia.infura.io/ws/v3/3fbb55944ed342f9a5775602cd8bc900");
 
     const web3 = new Web3(wsProvider);
 
     const factory = await new web3.eth.Contract(
         compiledFactory.abi,
-        config.factoryAddress
+        config.web3.factoryAddress
     );
 
     const factorySubscribe = async () => {
@@ -56,10 +53,10 @@ const listenerSetup = async () => {
                         const coordinates = contractQuery[0][0]['ST_Centroid(ST_GeomFromText(ST_AsText(coordinates)))'];
                         const task = JSON.parse(contractQuery[0][0]['data'])['3'];
                         const status = JSON.parse(contractQuery[0][0]['data'])['6'];
-                        const contractURL = `${mailgunConfig.baseURL}?contractId=${contractQuery[0][0].id}&x=${coordinates.x}&y=${coordinates.y}`;
+                        const contractURL = `${config.mailgun.baseURL}?contractId=${contractQuery[0][0].id}&x=${coordinates.x}&y=${coordinates.y}`;
                         subscribed[0].forEach((subscription) => {
                             const data = {
-                                from: `Ofanym <postmaster@${mailgunConfig.domain}>`,
+                                from: `Ofanym <postmaster@${config.mailgun.domain}>`,
                                 to: subscription.email,
                                 subject: "Contract Status Update",
                                 template: "Contract Status Update",

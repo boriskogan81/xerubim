@@ -7,7 +7,7 @@ let provider = new HDWalletProvider({
   mnemonic: {
     phrase: mnemonicPhrase
   },
-  providerOrUrl: "https://goerli.infura.io/v3/3fbb55944ed342f9a5775602cd8bc900"
+  providerOrUrl: "https://sepolia.infura.io/v3/3fbb55944ed342f9a5775602cd8bc900"
 });
 
 const web3 = new Web3(provider);

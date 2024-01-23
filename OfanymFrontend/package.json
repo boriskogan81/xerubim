@@ -45,7 +45,7 @@
     "vue3-openlayers": "^0.1.70",
     "web-fs": "^2.1.0",
     "web-streams-polyfill": "^3.2.1",
-    "web3": "^4.0.3",
+    "web3": "^4.4.0",
     "web3-utils": "^4.0.3",
     "web3.storage": "^4.4.0"
   },

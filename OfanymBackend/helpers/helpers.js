@@ -4,31 +4,29 @@ const crypto = require('crypto');
 const {subtle} = require('crypto').webcrypto;
 const HDWalletProvider = require("@truffle/hdwallet-provider");
 const Web3 = require("web3");
-const config = require("../../OfanymFrontend/config/web3.json");
-const mnemonicPhrase = config.mnemonic;
-const providerUrl = config.providerUrl;
+const config = require('./config_helper');
+const mnemonicPhrase = config.web3.mnemonic;
+const providerUrl = config.web3.providerUrl;
 const compiledFactory = require('../../OfanymFrontend/ethereum/build/MediaContractFactory.json');
 const compiledContract = require('../../OfanymFrontend/ethereum/build/MediaContract.json');
 const Contract = require('../models/contract').model;
 const knex = require('../bootstrap/bookshelf_instance').knex;
 const streamingS3 = require('streaming-s3');
 const formidable = require('formidable');
-const s3Config = require('./s3helper').s3Config;
 const {Upload} = require('@aws-sdk/lib-storage');
 const {S3Client, PutObjectTaggingCommand } = require("@aws-sdk/client-s3");
 const {PassThrough} = require("stream");
 const {createEncryptStream} = require('aes-encrypt-stream');
 const openpgp = require('openpgp');
 const Mailgun = require('mailgun-js');
-const mailgunConfig = require('../config/mailgun.json');
-const mailgun = new Mailgun({apiKey: mailgunConfig.key, domain: mailgunConfig.domain});
+const mailgun = new Mailgun({apiKey: config.mailgun.key, domain: config.mailgun.domain});
 const {logger} = require('../logger');
 
 const client = new S3Client({
-    region: s3Config.region,
+    region: config.s3.region,
     credentials: {
-        accessKeyId: s3Config.accessKeyId,
-        secretAccessKey: s3Config.secretAccessKey
+        accessKeyId: config.s3.accessKeyId,
+        secretAccessKey: config.s3.secretAccessKey
     },
     //  endpoint: s3Config.endpoint
 });
@@ -52,11 +50,11 @@ const saveFile = async (key, fileName, inputFilePath) => {
         const inputFileStream = fs.createReadStream(inputFilePath);
 
         const uploader = new streamingS3(createEncryptStream(inputFileStream), {
-                accessKeyId: s3Config.accessKeyId,
-                secretAccessKey: s3Config.secretAccessKey
+                accessKeyId: config.s3.accessKeyId,
+                secretAccessKey: config.s3.secretAccessKey
             },
             {
-                Bucket: s3Config.bucket,
+                Bucket: config.s3.bucket,
                 Key: hash
             }
         );
@@ -99,7 +97,7 @@ const ingestContracts = async () => {
     //TODO refactor to use stored ABI and address
     const factory = await new web3.eth.Contract(
         compiledFactory.abi,
-        config.factoryAddress
+        config.web3.factoryAddress
     );
     const contractAddresses = await factory.methods.getDeployedContracts().call();
 
@@ -332,7 +330,7 @@ const parseFile = async (req) => {
                     try{
                         authTag =  cipher.getAuthTag().toString('base64');
                         const input = {
-                            "Bucket": s3Config.bucket,
+                            "Bucket": config.s3.bucket,
                             "Key": s3Key,
                             "Tagging": {
                                 "TagSet": [
@@ -360,9 +358,9 @@ const parseFile = async (req) => {
                     client, params: {
                         Key: s3Key,
                         ContentType: file.mimetype,
-                        Bucket: s3Config.bucket,
+                        Bucket: config.s3.bucket,
                         Body: cipher,
-                        Region: s3Config.region
+                        Region: config.s3.region
                     },
                     queueSize: 4,
                     partSize: 1024 * 1024 * 5,
@@ -546,9 +544,9 @@ const saveMessage = async (req) => {
         const exists = await knex.raw(`SELECT * FROM email_subscriptions WHERE address = \'${message.to}'`);
         if(exists[0].length !== 0){
             const subscription = exists[0][0]
-            const ofanymURL = `${mailgunConfig.baseURL}`;
+            const ofanymURL = `${config.mailgun.baseURL}`;
             const data = {
-                from: `Ofanym <postmaster@${mailgunConfig.domain}>`,
+                from: `Ofanym <postmaster@${config.mailgun.domain}>`,
                 to: subscription.email,
                 subject: "New Message At Ofanym",
                 template: "Message Notification\n",

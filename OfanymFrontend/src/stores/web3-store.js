@@ -284,7 +284,7 @@ export const useWeb3Store = defineStore('web3', {
           .proposeMedia(cids)
           .send({
             from: this.account,
-            gas: 10000000 //await getGasFeeForProposalCall()
+            gas: await getGasFeeForProposalCall()
           })
           .on('error', function (error, receipt) {
             console.log(error, receipt)

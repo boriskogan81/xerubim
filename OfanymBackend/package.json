@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "start": "pm2 start ./bin/www --watch -f"
+    "start": "node app.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.332.0",

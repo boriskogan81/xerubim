@@ -8,6 +8,7 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.332.0",
     "@aws-sdk/lib-storage": "^3.332.0",
+    "@truffle/hdwallet-provider": "^2.1.15",
     "bookshelf": "^1.2.0",
     "bookshelf-json-columns": "^3.0.0",
     "bookshelf-registry": "^1.0.0",

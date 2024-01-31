@@ -11,10 +11,13 @@
   "production": {
     "client": "mysql",
     "connection": {
-      "host": "localhost",
-      "user": "root",
-      "password": "password",
-      "database": "xerubim-db"
+      "host": "aws.connect.psdb.cloud",
+      "user": "m2il99lxy51j64507uqp",
+      "password": "pscale_pw_L3glCcanKgEs7Aa33GZd4zS1C72jurcmGyCggBa5gTH",
+      "database": "ofanym-demo",
+      "ssl": {
+        "rejectUnauthorized": false
+      }
     },
     "debug": true
   },

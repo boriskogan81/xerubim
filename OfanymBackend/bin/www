@@ -5,7 +5,7 @@
  */
 
 var app = require('../app');
-var debug = require('debug')('xerubimbackend:server');
+var debug = require('debug')('ofanymbackend:server');
 var http = require('http');
 
 /**

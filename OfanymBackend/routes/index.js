@@ -46,7 +46,7 @@ router.post('/ciphertextDecrypt', async (req, res) => {
     }
 });
 
-
+//used
 router.post('/ingest', async (req, res) => {
     try {
         logger.info(req, 'Ingest request');
@@ -59,6 +59,7 @@ router.post('/ingest', async (req, res) => {
     }
 });
 
+//used
 router.get('/contracts', async (req, res) => {
     try {
         logger.info(req.query, 'Contract retrieval request');
@@ -71,6 +72,7 @@ router.get('/contracts', async (req, res) => {
     }
 });
 
+//used in front end
 router.get('/buyerEncryptedKey', async(req, res) => {
     try{
         logger.info(req.query, 'Buyer key retrieval request')

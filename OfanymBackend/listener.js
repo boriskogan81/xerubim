@@ -1,8 +1,8 @@
 const Web3 = require("web3");
 const config = require('./helpers/config_helper');
 const knex = require('./bootstrap/bookshelf_instance').knex;
-const compiledFactory = require('../OfanymFrontend/ethereum/build/MediaContractFactory.json');
-const compiledContract = require('../OfanymFrontend/ethereum/build/MediaContract.json');
+const compiledFactory = require('./ethereum/build/MediaContractFactory.json');
+const compiledContract = require('./ethereum/build/MediaContract.json');
 const Mailgun = require('mailgun-js');
 const mailgun = new Mailgun({apiKey: config.mailgun.key, domain: config.mailgun.domain});
 

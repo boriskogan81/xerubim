@@ -7,7 +7,13 @@ if(!process.env.ENVIRONMENT){
     s3Config = require('../config/s3config.json');
     web3Config = require('../config/web3.json');
 }
-
+else{
+    mailgunConfig = {};
+    twitterConfig = {};
+    dbConfig = {};
+    s3Config = {};
+    web3Config = {};
+}
 const config = {
     mailgun: {
         key: process.env.MAILGUN_API_KEY || mailgunConfig.key,

@@ -1,8 +1,12 @@
-const mailgunConfig = require('../config/mailgun.json');
-const twitterConfig = require('../config/twitter.json');
-const dbConfig = require('../config/db_config');
-const s3Config = require('../config/s3config.json');
-const web3Config = require('../config/web3.json');
+let mailgunConfig, twitterConfig, dbConfig, s3Config, web3Config;
+
+if(!process.env.ENVIRONMENT){
+    mailgunConfig = require('../config/mailgun.json');
+    twitterConfig = require('../config/twitter.json');
+    dbConfig = require('../config/db_config');
+    s3Config = require('../config/s3config.json');
+    web3Config = require('../config/web3.json');
+}
 
 const config = {
     mailgun: {

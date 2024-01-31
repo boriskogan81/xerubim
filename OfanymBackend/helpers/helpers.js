@@ -1,5 +1,3 @@
-const EthCrypto = require('eth-crypto');
-const fs = require('fs');
 const crypto = require('crypto');
 const {subtle} = require('crypto').webcrypto;
 const HDWalletProvider = require("@truffle/hdwallet-provider");
@@ -11,12 +9,10 @@ const compiledFactory = require('../ethereum/build/MediaContractFactory.json');
 const compiledContract = require('../ethereum/build/MediaContract.json');
 const Contract = require('../models/contract').model;
 const knex = require('../bootstrap/bookshelf_instance').knex;
-const streamingS3 = require('streaming-s3');
 const formidable = require('formidable');
 const {Upload} = require('@aws-sdk/lib-storage');
 const {S3Client, PutObjectTaggingCommand } = require("@aws-sdk/client-s3");
 const {PassThrough} = require("stream");
-const {createEncryptStream} = require('aes-encrypt-stream');
 const openpgp = require('openpgp');
 const Mailgun = require('mailgun-js');
 const mailgun = new Mailgun({apiKey: config.mailgun.key, domain: config.mailgun.domain});
@@ -45,52 +41,6 @@ let provider = new HDWalletProvider({
 
 const web3 = new Web3(provider);
 
-const saveFile = async (key, fileName, inputFilePath) => {
-    try {
-        const inputFileStream = fs.createReadStream(inputFilePath);
-
-        const uploader = new streamingS3(createEncryptStream(inputFileStream), {
-                accessKeyId: config.s3.accessKeyId,
-                secretAccessKey: config.s3.secretAccessKey
-            },
-            {
-                Bucket: config.s3.bucket,
-                Key: hash
-            }
-        );
-
-        uploader.on('data', function (bytesRead) {
-            console.log(bytesRead, ' bytes read.');
-        });
-
-        uploader.on('part', function (number) {
-            console.log('Part ', number, ' uploaded.');
-        });
-
-        // All parts uploaded, but upload not yet acknowledged.
-        uploader.on('uploaded', function (stats) {
-            console.log('Upload stats: ', stats);
-            logger.info(`File ${fileName} uploaded to S3`, {stats})
-        });
-
-        uploader.on('finished', function (resp, stats) {
-            console.log('Upload finished: ', resp);
-            logger.info(`File ${fileName} upload finished`, {resp})
-        });
-
-        uploader.on('error', function (e) {
-            console.log('Upload error: ', e);
-            logger.error(`File ${fileName} upload error`, {e})
-        });
-
-        uploader.begin();
-        return fileName
-
-    } catch (e) {
-        console.log(e);
-        throw e;
-    }
-}
 
 //TODO add logic to sync array of contracts
 const ingestContracts = async () => {
@@ -240,36 +190,6 @@ const storeSignature = async (signature, address) => {
     } catch (e) {
         console.log(e);
         logger.error(e, 'Store signature failed');
-    }
-}
-
-const encryptWithSignature = async (plaintext, address, contractAddress, type) => {
-    try {
-        const signatureQuery = await knex.raw(`SELECT signature FROM signature where address = \'${address}\' LIMIT 1`);
-        const signature = signatureQuery[0][0].signature;
-        const publicKey = EthCrypto.recoverPublicKey(
-            signature,
-            EthCrypto.hash.keccak256('\x19Ethereum Signed Message:\n' + 'Signature verification for video file encryption'.length + 'Signature verification for video file encryption')
-        );
-        const encryptedObject = await EthCrypto.encryptWithPublicKey(publicKey, plaintext);
-
-        if(type === 'customer')
-            await knex.raw(`INSERT INTO crypto (contractAddress, buyerEncryptedKey) VALUES (\'${contractAddress}\', \'${JSON.stringify(encryptedObject)}\')`)
-        logger.info(`Encrypted with signature`, {encryptedObject})
-    } catch (e) {
-        console.log(e)
-        logger.error(e, 'Encrypt with signature failed');
-    }
-}
-
-const decryptWithPrivateKey = async (ciphertext, privateKey) => {
-    try {
-        const decrypted = await EthCrypto.decryptWithPrivateKey(privateKey, EthCrypto.cipher.parse(ciphertext));
-        logger.info(`Decrypted with private key`, {decrypted})
-        return decrypted;
-    } catch (e) {
-        console.log(e)
-        logger.error(e, 'Decrypt with private key failed');
     }
 }
 
@@ -622,13 +542,10 @@ const messageSubscribe = async (req) => {
 }
 
 module.exports = {
-    saveFile,
     ingestContractByAddress,
     ingestContracts,
     retrieveContracts,
     storeSignature,
-    encryptWithSignature,
-    decryptWithPrivateKey,
     parseFile,
     retrieveBuyerEncryptedKey,
     savePublicKey,

@@ -12,7 +12,7 @@ if (process.env.PLANETSCALE_PWD)
         "client": "mysql",
         "connection": {
             "host": process.env.PLANETSCALE_HOST,
-            "user": process.env.PLANETSCALE_USER,
+            "user": process.env.PLANETSCALE_USERz,
             "password": process.env.PLANETSCALE_PWD,
             "database": process.env.PLANETSCALE_DB,
             "ssl": {

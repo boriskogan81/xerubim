@@ -7,45 +7,6 @@ const {model: Media} = require("../models/media");
 const {logger} = require('../logger');
 
 
-router.post('/signatures', async (req, res) => {
-    try {
-        logger.info(req, 'Signature request');
-        const {signature, address} = req.body;
-        await helpers.storeSignature(signature, address);
-        return ReS(res, 'successfully stored', 200);
-    } catch (e) {
-        console.log(e)
-        logger.error(e, 'Signature request failed');
-        ReE(res, e, 500);
-    }
-});
-
-router.post('/plaintextEncrypt', async (req, res) => {
-    try {
-        logger.info(req, 'Encryption request');
-        const {plaintext, address} = req.body;
-        const encrypted  = await helpers.encryptWithSignature(plaintext, address);
-        return ReS(res, {encrypted}, 200);
-    } catch (e) {
-        console.log(e)
-        logger.error(e, 'Encryption request failed');
-        ReE(res, e, 500);
-    }
-});
-
-router.post('/ciphertextDecrypt', async (req, res) => {
-    try {
-        logger.info(req, 'Ciphertext decryption request');
-        const {ciphertext, privateKey} = req.body;
-        const decrypted  = await helpers.decryptWithPrivateKey(ciphertext, privateKey);
-        return ReS(res, {decrypted}, 200);
-    } catch (e) {
-        console.log(e);
-        logger.error(e, 'Ciphertext decryption request failed');
-        ReE(res, e, 500);
-    }
-});
-
 //used
 router.post('/ingest', async (req, res) => {
     try {
@@ -72,7 +33,6 @@ router.get('/contracts', async (req, res) => {
     }
 });
 
-//used in front end
 router.get('/buyerEncryptedKey', async(req, res) => {
     try{
         logger.info(req.query, 'Buyer key retrieval request')
@@ -125,18 +85,6 @@ router.post('/contractSubscriptions', async (req, res) => {
     } catch (e) {
         console.log(`Contract subscription failed`, {e});
         logger.error(e, 'Contract subscription GET request failed');
-        ReE(res, e, 400);
-    }
-});
-
-router.post('/contractCentroid', async (req, res) => {
-    try {
-        logger.info(req, 'Contract centroid POST request')
-        const centroid = await helpers.contractCentroid(req);
-        return ReS(res, centroid, 200);
-    } catch (e) {
-        console.log(`Contract centroid failed`, {e});
-        logger.error(e, 'Contract centroid POST request failed');
         ReE(res, e, 400);
     }
 });
@@ -241,17 +189,6 @@ router.post('/messageSubscribe', async (req, res) => {
     catch (e) {
         logger.error(e, 'Message subscription request failed');
         console.log(`Message subscription failed`, {e});
-        ReE(res, e, 500);
-    }
-});
-
-router.post('/frontEndLog', async (req, res) => {
-    try {
-        logger.info(req, 'Front end logging request');
-        return ReS(res, 'success', 200);
-    }
-    catch (e) {
-        logger.error(e, 'Front end logging request failed');
         ReE(res, e, 500);
     }
 });

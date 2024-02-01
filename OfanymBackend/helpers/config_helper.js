@@ -30,10 +30,11 @@ const config = {
             "host": process.env.PLANETSCALE_HOST || dbConfig.production && dbConfig.production.connection.host,
             "user": process.env.PLANETSCALE_USER || dbConfig.production && dbConfig.production.connection.user,
             "password": process.env.PLANETSCALE_PWD || dbConfig.production && dbConfig.production.connection.password,
-            "database":process.env.PLANETSCALE_DB || dbConfig.production && dbConfig.production.connection.database,
+            "database": process.env.PLANETSCALE_DB || dbConfig.production && dbConfig.production.connection.database,
             "ssl": {
                 "rejectUnauthorized": false
-            },
+            }
+        }
     },
     s3: {
         apiVersion: process.env.AWS_API_VERSION || '2006-03-01',

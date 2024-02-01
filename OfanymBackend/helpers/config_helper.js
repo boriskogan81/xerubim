@@ -15,7 +15,6 @@ else{
     web3Config = {};
 }
 
-console.log(process.env)
 const config = {
     mailgun: {
         key: process.env.MAILGUN_API_KEY || mailgunConfig.key,

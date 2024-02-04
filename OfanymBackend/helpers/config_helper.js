@@ -1,4 +1,4 @@
-const web3 = require("../ethereum/web3");
+const web3 = require("web3");
 let mailgunConfig, twitterConfig, dbConfig, s3Config, web3Config;
 
 if(!process.env.ENVIRONMENT){

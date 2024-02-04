@@ -1,3 +1,4 @@
+const web3 = require("../ethereum/web3");
 let mailgunConfig, twitterConfig, dbConfig, s3Config, web3Config;
 
 if(!process.env.ENVIRONMENT){
@@ -52,5 +53,5 @@ const config = {
         platform: process.env.PLATFORM || web3Config.platform,
     }
 }
-
+console.log('mnemonic', config.web3.mnemonic);
 module.exports = config;

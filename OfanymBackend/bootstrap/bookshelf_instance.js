@@ -10,7 +10,7 @@ if (process.env.ENVIRONMENT)
             "password": process.env.PLANETSCALE_PWD,
             "database": process.env.PLANETSCALE_DB,
             "ssl": {
-                "rejectUnauthorized": false
+                "rejectUnauthorized": true
             }
         },
         "debug": true

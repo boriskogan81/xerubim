@@ -1,4 +1,4 @@
-const Web3 = require("web3");
+const {Web3, WebSocketProvider} = require("web3");
 const config = require('./helpers/config_helper');
 const knex = require('./bootstrap/bookshelf_instance').knex;
 const compiledFactory = require('./ethereum/build/MediaContractFactory.json');
@@ -8,7 +8,7 @@ const mailgun = new Mailgun({apiKey: config.mailgun.key, domain: config.mailgun.
 
 const listenerSetup = async () => {
 
-    const wsProvider = new Web3.providers.WebsocketProvider("wss://sepolia.infura.io/ws/v3/3fbb55944ed342f9a5775602cd8bc900");
+    const wsProvider = new WebSocketProvider("wss://sepolia.infura.io/ws/v3/3fbb55944ed342f9a5775602cd8bc900");
 
     const web3 = new Web3(wsProvider);
 

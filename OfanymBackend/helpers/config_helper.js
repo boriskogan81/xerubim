@@ -47,11 +47,10 @@ const config = {
         endpoint: process.env.AWS_ENDPOINT || s3Config.endpoint
     },
     web3: {
-        mnemonic: process.env.MNEMONIC.replace('*', ' ')|| web3Config.mnemonic,
+        mnemonic: process.env.MNEMONIC.replaceAll('*', ' ')|| web3Config.mnemonic,
         factoryAddress: process.env.FACTORY_ADDRESS || web3Config.factoryAddress,
         providerUrl: process.env.PROVIDER_URL || web3Config.providerUrl,
         platform: process.env.PLATFORM || web3Config.platform,
     }
 }
-console.log('mnemonic', config.web3.mnemonic);
 module.exports = config;

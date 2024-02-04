@@ -17,6 +17,7 @@ const openpgp = require('openpgp');
 const Mailgun = require('mailgun-js');
 const mailgun = new Mailgun({apiKey: config.mailgun.key, domain: config.mailgun.domain});
 const {logger} = require('../logger');
+BigInt.prototype.toJSON = function() { return this.toString() };
 
 const client = new S3Client({
     region: config.s3.region,

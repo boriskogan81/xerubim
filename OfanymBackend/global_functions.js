@@ -1,5 +1,6 @@
-const logger = require('./logger');
+const pino = require('pino');
 
+const logger = pino({   level: process.env.NODE_ENV === 'production' ? 'info' : 'debug'});
 to = function (promise) {
     return promise
         .then(data => {
